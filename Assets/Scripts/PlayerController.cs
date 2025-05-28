@@ -12,11 +12,25 @@ public class PlayerController : MonoBehaviour
     private bool hasPlayedJumpAnimation = false;
 
     [SerializeField] private GameObject aimUIPrefab;
-    [SerializeField] private LayerMask aimLayerMask;
     [SerializeField] private CinemachineVirtualCamera virtualCamera;
-    [SerializeField] private float zoomInFOV = 30f;
-    [SerializeField] private float zoomOutFOV = 60f;
+    [SerializeField] private float zoomInSize = 3f; // 줌인 시 Orthographic Size
+    [SerializeField] private float zoomOutSize = 6f; // 줌아웃 시 Orthographic Size
     private GameObject aimUIInstance;
+
+    [SerializeField] private GameObject arrowPrefab; // 화살 프리팹
+    [SerializeField] private Transform firePoint; // 발사 위치 (플레이어 위치 또는 무기 위치)
+
+    private void HandleAttack()
+    {
+        if (Input.GetMouseButtonDown(0)) // 좌클릭
+        {
+            Vector2 aimPosition = aimUIInstance.transform.position;
+            Vector2 direction = (aimPosition - (Vector2)firePoint.position).normalized;
+
+            GameObject arrow = Instantiate(arrowPrefab, firePoint.position, Quaternion.identity);
+            arrow.GetComponent<Arrow>().SetDirection(direction);
+        }
+    }
 
     void Awake()
     {
@@ -33,16 +47,19 @@ public class PlayerController : MonoBehaviour
 
         stateMachine.ChangeState(EPlayerState.Idle);
 
-        // AimUI 인스턴스 생성
         aimUIInstance = Instantiate(aimUIPrefab, Vector3.zero, Quaternion.identity);
-        aimUIInstance.layer = LayerMask.NameToLayer("Ignore Raycast"); // AimUI 레이어를 Ignore Raycast로 설정
+        aimUIInstance.layer = LayerMask.NameToLayer("Ignore Raycast");
+
+        if (virtualCamera != null)
+            virtualCamera.m_Lens.OrthographicSize = zoomOutSize; // 초기 크기 설정
     }
 
-    void Update()
+    void LateUpdate()
     {
         stateMachine.Update();
         HandleAimUI();
         HandleZoom();
+        HandleAttack();
     }
 
     public void ChangeState(EPlayerState newState)
@@ -57,23 +74,29 @@ public class PlayerController : MonoBehaviour
 
     private void HandleAimUI()
     {
-        Ray ray = Camera.main.ScreenPointToRay(Input.mousePosition);
-        if (Physics2D.Raycast(ray.origin, ray.direction, 100f, aimLayerMask))
-        {
-            RaycastHit2D hit = Physics2D.Raycast(ray.origin, ray.direction, 100f, aimLayerMask);
-            aimUIInstance.transform.position = hit.point;
-        }
+        // 마우스 위치를 월드 좌표로 변환
+        Vector3 mouseWorldPosition = Camera.main.ScreenToWorldPoint(Input.mousePosition);
+        mouseWorldPosition.z = 0f; // 2D이므로 z축은 0으로 설정
+        aimUIInstance.transform.position = mouseWorldPosition; // AimUI를 마우스 위치로 이동
     }
 
     private void HandleZoom()
     {
-        if (Input.GetMouseButtonDown(1)) // 우클릭
+        if (Input.GetMouseButtonDown(1))
         {
-            virtualCamera.m_Lens.FieldOfView = zoomInFOV;
+            Debug.Log("Zoom In triggered");
+            if (virtualCamera != null)
+                virtualCamera.m_Lens.OrthographicSize = zoomInSize;
+            else
+                Debug.LogError("Virtual Camera is not assigned!");
         }
         else if (Input.GetMouseButtonUp(1))
         {
-            virtualCamera.m_Lens.FieldOfView = zoomOutFOV;
+            Debug.Log("Zoom Out triggered");
+            if (virtualCamera != null)
+                virtualCamera.m_Lens.OrthographicSize = zoomOutSize;
+            else
+                Debug.LogError("Virtual Camera is not assigned!");
         }
     }
 }
