@@ -11,12 +11,14 @@ public class PlayerController : MonoBehaviour
     private Animator animator;
     private bool hasPlayedJumpAnimation = false;
 
+    private GameObject aimUIInstance;
+    private float lastRollTime; // 마지막 구르기 시간
+
     [SerializeField] private GameObject aimUIPrefab;
     [SerializeField] private CinemachineVirtualCamera virtualCamera;
     [SerializeField] private float zoomInSize = 3f; // 줌인 시 Orthographic Size
     [SerializeField] private float zoomOutSize = 6f; // 줌아웃 시 Orthographic Size
-    private GameObject aimUIInstance;
-
+    [SerializeField] private float rollCooldown = 2f; // 구르기 쿨타임 (2초)
     [SerializeField] private GameObject arrowPrefab; // 화살 프리팹
     [SerializeField] private Transform firePoint; // 발사 위치 (플레이어 위치 또는 무기 위치)
     [SerializeField] private float maxAngle = 45f; // 발사 가능한 최대 각도 (예: 45도)
@@ -41,6 +43,8 @@ public class PlayerController : MonoBehaviour
 
         if (virtualCamera != null)
             virtualCamera.m_Lens.OrthographicSize = zoomOutSize; // 초기 크기 설정
+
+        lastRollTime = -rollCooldown; // 초기값 설정
     }
 
     void LateUpdate()
@@ -54,6 +58,16 @@ public class PlayerController : MonoBehaviour
     public void ChangeState(EPlayerState newState)
     {
         stateMachine.ChangeState(newState);
+    }
+
+    public bool CanRoll()
+    {
+        return Time.time >= lastRollTime + rollCooldown;
+    }
+
+    public void OnRoll()
+    {
+        lastRollTime = Time.time;
     }
 
     public PlayerMovement Movement => movement;

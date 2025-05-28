@@ -18,7 +18,7 @@ public class IdleState : BaseState
             player.ChangeState(EPlayerState.Move);
         if (Input.GetButtonDown("Jump"))
             player.ChangeState(EPlayerState.Jump);
-        if (Input.GetKeyDown(KeyCode.LeftShift))
+        if (Input.GetKeyDown(KeyCode.LeftShift) && player.CanRoll())
             player.ChangeState(EPlayerState.Roll);
     }
 
@@ -43,7 +43,7 @@ public class MoveState : BaseState
             player.ChangeState(EPlayerState.Idle);
         if (Input.GetButtonDown("Jump"))
             player.ChangeState(EPlayerState.Jump);
-        if (Input.GetKeyDown(KeyCode.LeftShift))
+        if (Input.GetKeyDown(KeyCode.LeftShift) && player.CanRoll())
             player.ChangeState(EPlayerState.Roll);
     }
 
@@ -72,6 +72,12 @@ public class JumpState : BaseState
         float yVelocity = player.Movement.VerticalVelocity;
         if (yVelocity < 0)
             player.ChangeState(EPlayerState.Fall);
+
+        if (player.Status.IsGrounded.Value)
+        {
+            player.HasPlayedJumpAnimation = false;
+            player.ChangeState(EPlayerState.Idle);
+        }
     }
 
     public override void Exit() { }
@@ -83,6 +89,7 @@ public class FallState : BaseState
 
     public override void Enter()
     {
+        Debug.Log("Entering Fall State");
         player.Animator.Play("j_down");
     }
 
@@ -103,18 +110,30 @@ public class FallState : BaseState
 
 public class RollState : BaseState
 {
+    private float rollDuration = 0.5f; // 구르기 지속 시간 (애니메이션 길이에 맞춤)
+    private float rollTimer;
+
     public RollState(PlayerController player) : base(player) { }
 
     public override void Enter()
     {
-        player.Animator.Play("roll");
+        if (!player.CanRoll()) return; // 쿨타임 확인
+        player.Animator.Play("roll", 0, 0f); // 애니메이션 재생 시작
         player.Movement.Roll();
+        player.OnRoll(); // 쿨타임 시작
+        rollTimer = 0f;
     }
 
     public override void Execute()
     {
-        if (!player.Animator.GetCurrentAnimatorStateInfo(0).IsName("roll"))
+        rollTimer += Time.deltaTime;
+
+        // 애니메이션 진행 상황 또는 지속 시간으로 전환
+        AnimatorStateInfo stateInfo = player.Animator.GetCurrentAnimatorStateInfo(0);
+        if (rollTimer >= rollDuration || (stateInfo.IsName("roll") && stateInfo.normalizedTime >= 1f))
+        {
             player.ChangeState(EPlayerState.Idle);
+        }
     }
 
     public override void Exit() { }
