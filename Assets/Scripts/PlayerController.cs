@@ -19,6 +19,7 @@ public class PlayerController : MonoBehaviour
 
     [SerializeField] private GameObject arrowPrefab; // 화살 프리팹
     [SerializeField] private Transform firePoint; // 발사 위치 (플레이어 위치 또는 무기 위치)
+    [SerializeField] private float maxAngle = 45f; // 발사 가능한 최대 각도 (예: 45도)
 
 
     void Awake()
@@ -37,7 +38,6 @@ public class PlayerController : MonoBehaviour
         stateMachine.ChangeState(EPlayerState.Idle);
 
         aimUIInstance = Instantiate(aimUIPrefab, Vector3.zero, Quaternion.identity);
-        aimUIInstance.layer = LayerMask.NameToLayer("Ignore Raycast");
 
         if (virtualCamera != null)
             virtualCamera.m_Lens.OrthographicSize = zoomOutSize; // 초기 크기 설정
@@ -97,11 +97,24 @@ public class PlayerController : MonoBehaviour
             Vector2 aimPosition = aimUIInstance.transform.position;
             Vector2 direction = (aimPosition - (Vector2)firePoint.position).normalized;
 
-            GameObject arrow = Instantiate(arrowPrefab, firePoint.position, Quaternion.identity);
-            arrow.GetComponent<Arrow>().SetDirection(direction);
-
-            // 디버깅 로그 추가
+            // 발사 각도 계산
             float angle = Mathf.Atan2(direction.y, direction.x) * Mathf.Rad2Deg;
+            // 플레이어 방향에 따라 기준 각도 조정
+            float referenceAngle = movement.IsFacingRight ? 0f : 180f;
+            float relativeAngle = Mathf.Abs(Mathf.DeltaAngle(angle, referenceAngle));
+
+            // 각도 제한 확인
+            if (relativeAngle <= maxAngle)
+            {
+                Vector2 spawnPosition = (Vector2)firePoint.position + direction * 0.5f;
+                GameObject arrow = Instantiate(arrowPrefab, spawnPosition, Quaternion.identity);
+                arrow.layer = LayerMask.NameToLayer("Projectile");
+                arrow.GetComponent<Arrow>().SetDirection(direction);
+            }
+            else
+            {
+                Debug.Log("발사 불가");
+            }
         }
     }
     
