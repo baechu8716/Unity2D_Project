@@ -20,17 +20,6 @@ public class PlayerController : MonoBehaviour
     [SerializeField] private GameObject arrowPrefab; // 화살 프리팹
     [SerializeField] private Transform firePoint; // 발사 위치 (플레이어 위치 또는 무기 위치)
 
-    private void HandleAttack()
-    {
-        if (Input.GetMouseButtonDown(0)) // 좌클릭
-        {
-            Vector2 aimPosition = aimUIInstance.transform.position;
-            Vector2 direction = (aimPosition - (Vector2)firePoint.position).normalized;
-
-            GameObject arrow = Instantiate(arrowPrefab, firePoint.position, Quaternion.identity);
-            arrow.GetComponent<Arrow>().SetDirection(direction);
-        }
-    }
 
     void Awake()
     {
@@ -99,4 +88,21 @@ public class PlayerController : MonoBehaviour
                 Debug.LogError("Virtual Camera is not assigned!");
         }
     }
+
+    private void HandleAttack()
+    {
+        // 좌클릭
+        if (Input.GetMouseButtonDown(0))
+        {
+            Vector2 aimPosition = aimUIInstance.transform.position;
+            Vector2 direction = (aimPosition - (Vector2)firePoint.position).normalized;
+
+            GameObject arrow = Instantiate(arrowPrefab, firePoint.position, Quaternion.identity);
+            arrow.GetComponent<Arrow>().SetDirection(direction);
+
+            // 디버깅 로그 추가
+            float angle = Mathf.Atan2(direction.y, direction.x) * Mathf.Rad2Deg;
+        }
+    }
+    
 }
