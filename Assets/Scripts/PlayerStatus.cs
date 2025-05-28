@@ -6,25 +6,29 @@ using UnityEngine;
 [RequireComponent(typeof(Collider2D))]
 public class PlayerStatus : MonoBehaviour
 {
-    // 플레이어 스탯
-    [field: SerializeField] public float WalkSpeed { get; private set; }
-    [field: SerializeField] public float RunSpeed { get; private set; }
-    [field: SerializeField] public float JumpForce { get; private set; }
-    [field: SerializeField] public float DashSpeed { get; private set; }
-    [field: SerializeField] public int MaxHP { get; private set; }
+    [field: SerializeField] public float WalkSpeed { get; private set; } = 3f;
+    [field: SerializeField] public float RunSpeed { get; private set; } = 6f;
+    [field: SerializeField] public float JumpForce { get; private set; } = 12f;
+    [field: SerializeField] public float RollSpeed { get; private set; } = 15f;
+    [field: SerializeField] public int MaxHP { get; private set; } = 5;
 
-    // 상태 이벤트
-    public ObservableProperty<bool> IsMoving { get; } = new();
-    public ObservableProperty<bool> IsJumping{ get; } = new();
-    public ObservableProperty<bool> IsDashing { get; } = new();
-    public ObservableProperty<bool> IsAiming { get; } = new();
-    public ObservableProperty<bool> IsAttacking { get; } = new();
+    // 애니메이터용 파라미터
+    public ObservableProperty<float> MoveSpeed { get; } = new();   // |vx|
+    public ObservableProperty<float> VerticalSpeed { get; } = new();   // vy
+    public ObservableProperty<bool> IsGrounded { get; } = new();
 
-    // 체력 이벤트
-    //public ObservableProperty<int> CurrentHP { get; } = new();
+    // 상태 플래그 (FSM 전이용)
+    public ObservableProperty<bool> RollTriggered { get; } = new();
+    public ObservableProperty<bool> JumpTriggered { get; } = new();
+    public ObservableProperty<bool> AimTriggered { get; } = new();
+    public ObservableProperty<bool> AttackTriggered { get; } = new();
 
-    //private void Awake()
-    //{
-    //    CurrentHP.Value = MaxHP;
-    //}
+    // 체력
+    public ObservableProperty<int> CurrentHP { get; } = new();
+
+    private void Awake()
+    {
+        CurrentHP.Value = MaxHP;
+    }
 }
+

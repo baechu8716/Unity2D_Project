@@ -4,7 +4,7 @@ using UnityEngine;
 using UnityEngine.UI;
 using static UnityEngine.Rendering.DebugUI;
 
-[RequireComponent(typeof(PlayerStatus), typeof(PlayerMovement), typeof(Animator))]
+[RequireComponent(typeof(PlayerStatus), typeof(PlayerMovement))]
 public class PlayerController : MonoBehaviour
 {
     private PlayerStatus _status;
@@ -54,6 +54,17 @@ public class PlayerController : MonoBehaviour
             float dir = (inputX != 0) ? Mathf.Sign(inputX) : transform.localScale.x;
             _movement.Dash(dir);
         }
+        // 4) 조준 모드 (우클릭 토글)
+        if (Input.GetMouseButtonDown(1))
+            _status.IsAiming.Value = true;
+        if (Input.GetMouseButtonUp(1))
+            _status.IsAiming.Value = false;
+
+        // 5) 발사 (좌클릭)
+        if (_status.IsAiming.Value && Input.GetMouseButton(0))
+            _status.IsAttacking.Value = true;
+        else
+            _status.IsAttacking.Value = false;
     }
 
 

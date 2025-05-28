@@ -2,68 +2,54 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
-[RequireComponent(typeof(Rigidbody2D), typeof(PlayerStatus))]
+[RequireComponent(typeof(Rigidbody2D))]
 public class PlayerMovement : MonoBehaviour
 {
-    private Rigidbody2D _rigid;
-    private PlayerStatus _status;
+    private Rigidbody2D _rb;
+    [SerializeField] private PlayerStatus _status;
 
-    private bool _canDash = true;
-    private float _dashCoolDown = 1f;
+    // 중력 보정 계수
+    [SerializeField] private float fallMultiplier = 2.5f;
+    [SerializeField] private float lowJumpMultiplier = 2f;
 
     private void Awake()
     {
-        _rigid = GetComponent<Rigidbody2D>();
-        _status = GetComponent<PlayerStatus>();
+        _rb = GetComponent<Rigidbody2D>();
     }
 
-    public void Move(float input)
+    public void Move(float h)
     {
-        float speed = _status.IsAiming.Value ? _status.WalkSpeed : _status.RunSpeed;
+        float speed = _status.AimTriggered.Value
+            ? _status.WalkSpeed
+            : _status.RunSpeed;
+        Vector2 v = _rb.velocity;
+        v.x = h * speed;
+        _rb.velocity = v;
 
-        Vector2 velocity = _rigid.velocity;
-        velocity.x = input * speed;
-        _rigid.velocity = velocity;
-
-        // input값이 0이라면 ismoving은 false
-        _status.IsMoving.Value = !Mathf.Approximately(input, 0f);
+        _status.MoveSpeed.Value = Mathf.Abs(v.x);
     }
 
     public void Jump()
     {
-        // isgrounded대신 y축 속도로 공중에서 점프 제한
-        if (Mathf.Abs(_rigid.velocity.y) < 0.05f)
+        if (_status.IsGrounded.Value)
         {
-            _rigid.AddForce(Vector2.up * _status.JumpForce, ForceMode2D.Impulse);
-            _status.IsJumping.Value = true;
-            // 점프를 뛴 순간만 점프상태(IsJumping.Value = true)
-            Invoke(nameof(ResetJumpFlag), 0.2f);
+            _rb.velocity = new Vector2(_rb.velocity.x, 0);
+            _rb.AddForce(Vector2.up * _status.JumpForce, ForceMode2D.Impulse);
         }
     }
 
-    public void ResetJumpFlag()
+    public void Roll(float dir)
     {
-        _status.IsJumping.Value = false;
+        _rb.velocity = new Vector2(dir * _status.RollSpeed, _rb.velocity.y);
     }
 
-    public void Dash(float direction)
+    public void AdjustGravity()
     {
-        if (!_canDash) return;
-        _canDash = false;
-        _status.IsDashing.Value = true;
+        if (_rb.velocity.y < 0)
+            _rb.velocity += Vector2.up * Physics2D.gravity.y * (fallMultiplier - 1) * Time.fixedDeltaTime;
+        else if (_rb.velocity.y > 0 && !Input.GetKey(KeyCode.Space))
+            _rb.velocity += Vector2.up * Physics2D.gravity.y * (lowJumpMultiplier - 1) * Time.fixedDeltaTime;
 
-        _rigid.velocity = new Vector2(direction * _status.DashSpeed, _rigid.velocity.y);
-        Invoke(nameof(EndDash), 0.2f);
-        Invoke(nameof(ResetDashCooldown), _dashCoolDown);
-    }
-
-    public void EndDash()
-    {
-        _status.IsDashing.Value = false;
-    }
-
-    public void ResetDashCooldown()
-    {
-        _canDash = true;
+        _status.VerticalSpeed.Value = _rb.velocity.y;
     }
 }
