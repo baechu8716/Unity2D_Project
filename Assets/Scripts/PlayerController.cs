@@ -1,83 +1,79 @@
+using Cinemachine;
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
-using UnityEngine.UI;
-using static UnityEngine.Rendering.DebugUI;
 
-[RequireComponent(typeof(PlayerStatus), typeof(PlayerMovement))]
 public class PlayerController : MonoBehaviour
 {
-    private PlayerStatus _status;
-    private PlayerMovement _movement;
-    private Animator _animator;
-    //[SerializeField] private Image _hpBar;
+    private StateMachine stateMachine;
+    private PlayerMovement movement;
+    private PlayerStatus status;
+    private Animator animator;
+    private bool hasPlayedJumpAnimation = false;
 
-    private void Awake()
+    [SerializeField] private GameObject aimUIPrefab;
+    [SerializeField] private LayerMask aimLayerMask;
+    [SerializeField] private CinemachineVirtualCamera virtualCamera;
+    [SerializeField] private float zoomInFOV = 30f;
+    [SerializeField] private float zoomOutFOV = 60f;
+    private GameObject aimUIInstance;
+
+    void Awake()
     {
-        _status = GetComponent<PlayerStatus>();
-        _movement = GetComponent<PlayerMovement>();
-        _animator = GetComponentInChildren<Animator>();
+        movement = GetComponent<PlayerMovement>();
+        animator = GetComponentInChildren<Animator>();
+        status = new PlayerStatus(100f);
+
+        stateMachine = new StateMachine();
+        stateMachine.AddState(EPlayerState.Idle, new IdleState(this));
+        stateMachine.AddState(EPlayerState.Move, new MoveState(this));
+        stateMachine.AddState(EPlayerState.Jump, new JumpState(this));
+        stateMachine.AddState(EPlayerState.Fall, new FallState(this));
+        stateMachine.AddState(EPlayerState.Roll, new RollState(this));
+
+        stateMachine.ChangeState(EPlayerState.Idle);
+
+        // AimUI 인스턴스 생성
+        aimUIInstance = Instantiate(aimUIPrefab, Vector3.zero, Quaternion.identity);
+        aimUIInstance.layer = LayerMask.NameToLayer("Ignore Raycast"); // AimUI 레이어를 Ignore Raycast로 설정
     }
 
-    private void OnEnable()
+    void Update()
     {
-        _status.IsMoving.Subscribe(OnMoving);
-        _status.IsJumping.Subscribe(OnJumping);
-        _status.IsDashing.Subscribe(OnDashing);
-        _status.IsAiming.Subscribe(OnAiming);
-        _status.IsAttacking.Subscribe(OnAttacking);
-        //_status.CurrentHP.Subscribe(OnHPChanged);
+        stateMachine.Update();
+        HandleAimUI();
+        HandleZoom();
     }
 
-    private void OnDisable()
+    public void ChangeState(EPlayerState newState)
     {
-        _status.IsMoving.Unsubscribe(OnMoving);
-        _status.IsJumping.Unsubscribe(OnJumping);
-        _status.IsDashing.Unsubscribe(OnDashing);
-        _status.IsAiming.Unsubscribe(OnAiming);
-        _status.IsAttacking.Unsubscribe(OnAttacking);
-        //_status.CurrentHP.Unsubscribe(OnHPChanged);
+        stateMachine.ChangeState(newState);
     }
 
-    private void Update()
+    public PlayerMovement Movement => movement;
+    public PlayerStatus Status => status;
+    public Animator Animator => animator;
+    public bool HasPlayedJumpAnimation { get => hasPlayedJumpAnimation; set => hasPlayedJumpAnimation = value; }
+
+    private void HandleAimUI()
     {
-        float inputX = Input.GetAxisRaw("Horizontal");
-        _movement.Move(inputX);
-        if (inputX != 0)
-            transform.localScale = new Vector3(Mathf.Sign(inputX), 1, 1);
-
-        if (Input.GetKeyDown(KeyCode.Space))
-            _movement.Jump();
-
-        if (Input.GetKeyDown(KeyCode.LeftShift))
+        Ray ray = Camera.main.ScreenPointToRay(Input.mousePosition);
+        if (Physics2D.Raycast(ray.origin, ray.direction, 100f, aimLayerMask))
         {
-            float dir = (inputX != 0) ? Mathf.Sign(inputX) : transform.localScale.x;
-            _movement.Dash(dir);
+            RaycastHit2D hit = Physics2D.Raycast(ray.origin, ray.direction, 100f, aimLayerMask);
+            aimUIInstance.transform.position = hit.point;
         }
-        // 4) 조준 모드 (우클릭 토글)
-        if (Input.GetMouseButtonDown(1))
-            _status.IsAiming.Value = true;
-        if (Input.GetMouseButtonUp(1))
-            _status.IsAiming.Value = false;
-
-        // 5) 발사 (좌클릭)
-        if (_status.IsAiming.Value && Input.GetMouseButton(0))
-            _status.IsAttacking.Value = true;
-        else
-            _status.IsAttacking.Value = false;
     }
 
-
-    // ─── 상태 구독 콜백 ──────────────────────────
-    private void OnMoving(bool value) =>  _animator.SetBool("IsMove", value);
-    private void OnJumping(bool value) => _animator.SetTrigger("Jump");
-    private void OnDashing(bool value) => _animator.SetTrigger("Dash");
-    private void OnAiming(bool value) =>  _animator.SetBool("IsAim", value);
-    private void OnAttacking(bool value) => _animator.SetTrigger("Attack");
-
-    // ─── HP UI 갱신 ──────────────────────────
-    //private void OnHPChanged(int hp)
-    //{
-    //    _hpBar.fillAmount = hp / (float)_status.MaxHP;
-    //}
+    private void HandleZoom()
+    {
+        if (Input.GetMouseButtonDown(1)) // 우클릭
+        {
+            virtualCamera.m_Lens.FieldOfView = zoomInFOV;
+        }
+        else if (Input.GetMouseButtonUp(1))
+        {
+            virtualCamera.m_Lens.FieldOfView = zoomOutFOV;
+        }
+    }
 }

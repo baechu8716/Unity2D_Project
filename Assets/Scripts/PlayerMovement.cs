@@ -2,54 +2,47 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
-[RequireComponent(typeof(Rigidbody2D))]
 public class PlayerMovement : MonoBehaviour
 {
-    private Rigidbody2D _rb;
-    [SerializeField] private PlayerStatus _status;
+    private Rigidbody2D rb;
+    [SerializeField] private float moveSpeed = 5f;
+    [SerializeField] private float jumpForce = 5f;
+    [SerializeField] private float fallMultiplier = 2.5f; // 떨어질 때 더 빨리 떨어지도록
+    [SerializeField] private float lowJumpMultiplier = 2f; // 낮은 점프 조정
 
-    // 중력 보정 계수
-    [SerializeField] private float fallMultiplier = 2.5f;
-    [SerializeField] private float lowJumpMultiplier = 2f;
+    public float VerticalVelocity => rb.velocity.y;
 
-    private void Awake()
+    void Awake()
     {
-        _rb = GetComponent<Rigidbody2D>();
+        rb = GetComponent<Rigidbody2D>();
     }
 
-    public void Move(float h)
+    public void Move(float direction)
     {
-        float speed = _status.AimTriggered.Value
-            ? _status.WalkSpeed
-            : _status.RunSpeed;
-        Vector2 v = _rb.velocity;
-        v.x = h * speed;
-        _rb.velocity = v;
-
-        _status.MoveSpeed.Value = Mathf.Abs(v.x);
+        rb.velocity = new Vector2(direction * moveSpeed, rb.velocity.y);
     }
 
     public void Jump()
     {
-        if (_status.IsGrounded.Value)
+        rb.velocity = new Vector2(rb.velocity.x, jumpForce);
+    }
+
+    public void Roll()
+    {
+        // 구르기 로직 (예: 속도 증가)
+        rb.velocity = new Vector2(rb.velocity.x * 1.5f, rb.velocity.y);
+    }
+
+    void FixedUpdate()
+    {
+        // 자연스러운 점프와 낙하
+        if (rb.velocity.y < 0)
         {
-            _rb.velocity = new Vector2(_rb.velocity.x, 0);
-            _rb.AddForce(Vector2.up * _status.JumpForce, ForceMode2D.Impulse);
+            rb.velocity += Vector2.up * Physics2D.gravity.y * (fallMultiplier - 1) * Time.fixedDeltaTime;
         }
-    }
-
-    public void Roll(float dir)
-    {
-        _rb.velocity = new Vector2(dir * _status.RollSpeed, _rb.velocity.y);
-    }
-
-    public void AdjustGravity()
-    {
-        if (_rb.velocity.y < 0)
-            _rb.velocity += Vector2.up * Physics2D.gravity.y * (fallMultiplier - 1) * Time.fixedDeltaTime;
-        else if (_rb.velocity.y > 0 && !Input.GetKey(KeyCode.Space))
-            _rb.velocity += Vector2.up * Physics2D.gravity.y * (lowJumpMultiplier - 1) * Time.fixedDeltaTime;
-
-        _status.VerticalSpeed.Value = _rb.velocity.y;
+        else if (rb.velocity.y > 0 && !Input.GetButton("Jump"))
+        {
+            rb.velocity += Vector2.up * Physics2D.gravity.y * (lowJumpMultiplier - 1) * Time.fixedDeltaTime;
+        }
     }
 }
