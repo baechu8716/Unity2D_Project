@@ -50,7 +50,7 @@ public class PlayerController : MonoBehaviour
     void LateUpdate()
     {
         stateMachine.Update();
-
+        animator.Update(Time.deltaTime);
         HandleAimUI();
         HandleZoom();
         HandleAttack();

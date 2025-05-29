@@ -9,6 +9,9 @@ public class PlayerMovement : MonoBehaviour
     [SerializeField] private float jumpForce = 5f;
     [SerializeField] private float fallMultiplier = 2.5f; // 떨어질 때 더 빨리 떨어지도록
     [SerializeField] private float lowJumpMultiplier = 2f; // 낮은 점프 조정
+    [SerializeField] private Transform groundCheck; // 지면 체크 포인트
+    [SerializeField] private float groundRadius = 0.2f; // 지면 체크 반경
+    [SerializeField] private LayerMask groundLayer; // 지면 레이어
 
     private bool isFacingRight = true; // 기본적으로 오른쪽을 향함
     public bool IsFacingRight => isFacingRight;
@@ -17,14 +20,18 @@ public class PlayerMovement : MonoBehaviour
     void Awake()
     {
         rb = GetComponent<Rigidbody2D>();
+        if (groundCheck == null)
+        {
+
+        }
     }
+
     private void Update()
     {
         float moveInput = Input.GetAxisRaw("Horizontal");
         if (moveInput != 0)
         {
             isFacingRight = moveInput > 0;
-            // 스프라이트 방향 전환 로직 추가 (예: transform.localScale 조정)
             transform.localScale = new Vector3(isFacingRight ? 1f : -1f, 1f, 1f);
         }
     }
@@ -36,13 +43,32 @@ public class PlayerMovement : MonoBehaviour
 
     public void Jump()
     {
-        rb.velocity = new Vector2(rb.velocity.x, jumpForce);
+        if (IsGrounded())
+        {
+            rb.velocity = new Vector2(rb.velocity.x, jumpForce);
+        }
+        else
+        {
+        }
     }
 
     public void Roll()
     {
-        // 구르기 로직 (예: 속도 증가)
-        rb.velocity = new Vector2(rb.velocity.x * 1.5f, rb.velocity.y);
+        if (IsGrounded())
+        {
+            float rollSpeed = moveSpeed * 1.5f;
+            rb.velocity = new Vector2(isFacingRight ? rollSpeed : -rollSpeed, rb.velocity.y);
+        }
+    }
+
+    public bool IsGrounded()
+    {
+        if (groundCheck == null)
+        {
+            return false;
+        }
+        bool grounded = Physics2D.OverlapCircle(groundCheck.position, groundRadius, groundLayer);
+        return grounded;
     }
 
     void FixedUpdate()

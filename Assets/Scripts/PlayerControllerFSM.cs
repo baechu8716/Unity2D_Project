@@ -9,6 +9,7 @@ public class IdleState : BaseState
     public override void Enter()
     {
         player.Animator.Play("idle");
+        player.Animator.Update(0f); // 즉시 업데이트
     }
 
     public override void Execute()
@@ -16,7 +17,7 @@ public class IdleState : BaseState
         float moveInput = Input.GetAxisRaw("Horizontal");
         if (moveInput != 0)
             player.ChangeState(EPlayerState.Move);
-        if (Input.GetButtonDown("Jump"))
+        if (Input.GetButtonDown("Jump") && player.Movement.IsGrounded())
             player.ChangeState(EPlayerState.Jump);
         if (Input.GetKeyDown(KeyCode.LeftShift) && player.CanRoll())
             player.ChangeState(EPlayerState.Roll);
@@ -32,6 +33,7 @@ public class MoveState : BaseState
     public override void Enter()
     {
         player.Animator.Play("run");
+        player.Animator.Update(0f); // 즉시 업데이트
     }
 
     public override void Execute()
@@ -41,7 +43,7 @@ public class MoveState : BaseState
 
         if (moveInput == 0)
             player.ChangeState(EPlayerState.Idle);
-        if (Input.GetButtonDown("Jump"))
+        if (Input.GetButtonDown("Jump") && player.Movement.IsGrounded())
             player.ChangeState(EPlayerState.Jump);
         if (Input.GetKeyDown(KeyCode.LeftShift) && player.CanRoll())
             player.ChangeState(EPlayerState.Roll);
@@ -56,12 +58,12 @@ public class JumpState : BaseState
 
     public override void Enter()
     {
-        player.Animator.SetBool("isJumping", true);
-        player.Movement.Jump(); ;
+        player.Movement.Jump();
+
         if (!player.HasPlayedJumpAnimation)
         {
             player.Animator.Play("j_up", 0, 0f);
-            player.Animator.Update(0f);
+            player.Animator.Update(0f); // 즉시 업데이트
             player.HasPlayedJumpAnimation = true;
         }
     }
@@ -74,14 +76,11 @@ public class JumpState : BaseState
         float yVelocity = player.Movement.VerticalVelocity;
         if (yVelocity < 0)
         {
-            player.Animator.SetBool("isJumping", false);
-            player.Animator.SetBool("isFalling", true);
             player.ChangeState(EPlayerState.Fall);
         }
 
         if (player.Status.IsGrounded.Value)
         {
-            player.Animator.SetBool("isFalling", false);
             player.HasPlayedJumpAnimation = false;
             player.ChangeState(EPlayerState.Idle);
         }
@@ -96,9 +95,8 @@ public class FallState : BaseState
 
     public override void Enter()
     {
-        Debug.Log("Entering Fall State");
-        player.Animator.SetBool("isFalling", true);
-        player.Animator.Play("j_down");
+
+        player.Animator.Play("j_down", 0, 0f);
         player.Animator.Update(0f); // 즉시 업데이트
     }
 
@@ -109,7 +107,6 @@ public class FallState : BaseState
 
         if (player.Status.IsGrounded.Value)
         {
-            player.Animator.SetBool("isFalling", false);
             player.HasPlayedJumpAnimation = false;
             player.ChangeState(EPlayerState.Idle);
         }
@@ -120,27 +117,25 @@ public class FallState : BaseState
 
 public class RollState : BaseState
 {
-    private float rollDuration = 0.5f; // 구르기 지속 시간 (애니메이션 길이에 맞춤)
+    private float rollDuration = 0.5f;
     private float rollTimer;
 
     public RollState(PlayerController player) : base(player) { }
 
     public override void Enter()
     {
-        if (!player.CanRoll()) return; // 쿨타임 확인
-        player.Animator.Play("roll", 0, 0f); // 애니메이션 재생 시작
+        if (!player.CanRoll()) return;
+        player.Animator.Play("roll", 0, 0f);
+        player.Animator.Update(0f); // 즉시 업데이트
         player.Movement.Roll();
-        player.OnRoll(); // 쿨타임 시작
+        player.OnRoll();
         rollTimer = 0f;
     }
 
     public override void Execute()
     {
         rollTimer += Time.deltaTime;
-
-        // 애니메이션 진행 상황 또는 지속 시간으로 전환
-        AnimatorStateInfo stateInfo = player.Animator.GetCurrentAnimatorStateInfo(0);
-        if (rollTimer >= rollDuration || (stateInfo.IsName("roll") && stateInfo.normalizedTime >= 1f))
+        if (rollTimer >= rollDuration)
         {
             player.ChangeState(EPlayerState.Idle);
         }
