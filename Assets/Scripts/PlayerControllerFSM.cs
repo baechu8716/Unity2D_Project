@@ -56,10 +56,12 @@ public class JumpState : BaseState
 
     public override void Enter()
     {
-        player.Movement.Jump();
+        player.Animator.SetBool("isJumping", true);
+        player.Movement.Jump(); ;
         if (!player.HasPlayedJumpAnimation)
         {
             player.Animator.Play("j_up", 0, 0f);
+            player.Animator.Update(0f);
             player.HasPlayedJumpAnimation = true;
         }
     }
@@ -71,10 +73,15 @@ public class JumpState : BaseState
 
         float yVelocity = player.Movement.VerticalVelocity;
         if (yVelocity < 0)
+        {
+            player.Animator.SetBool("isJumping", false);
+            player.Animator.SetBool("isFalling", true);
             player.ChangeState(EPlayerState.Fall);
+        }
 
         if (player.Status.IsGrounded.Value)
         {
+            player.Animator.SetBool("isFalling", false);
             player.HasPlayedJumpAnimation = false;
             player.ChangeState(EPlayerState.Idle);
         }
@@ -90,7 +97,9 @@ public class FallState : BaseState
     public override void Enter()
     {
         Debug.Log("Entering Fall State");
+        player.Animator.SetBool("isFalling", true);
         player.Animator.Play("j_down");
+        player.Animator.Update(0f); // 즉시 업데이트
     }
 
     public override void Execute()
@@ -100,6 +109,7 @@ public class FallState : BaseState
 
         if (player.Status.IsGrounded.Value)
         {
+            player.Animator.SetBool("isFalling", false);
             player.HasPlayedJumpAnimation = false;
             player.ChangeState(EPlayerState.Idle);
         }

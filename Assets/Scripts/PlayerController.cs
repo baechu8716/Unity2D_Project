@@ -50,6 +50,7 @@ public class PlayerController : MonoBehaviour
     void LateUpdate()
     {
         stateMachine.Update();
+
         HandleAimUI();
         HandleZoom();
         HandleAttack();
