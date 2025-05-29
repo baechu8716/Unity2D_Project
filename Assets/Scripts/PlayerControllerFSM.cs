@@ -140,6 +140,7 @@ public class RollState : BaseState
         player.Animator.Update(0f);
         player.Movement.Roll();
         player.OnRoll();
+        player.SetInvincibility(true);
         rollTimer = 0f;
     }
 
@@ -152,5 +153,8 @@ public class RollState : BaseState
             player.ChangeState(EPlayerState.Idle);
     }
 
-    public override void Exit() { }
+    public override void Exit()
+    {
+        player.SetInvincibility(false);
+    }
 }

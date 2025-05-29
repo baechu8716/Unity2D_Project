@@ -11,6 +11,7 @@ public class PlayerController : MonoBehaviour
     private Animator animator;
     private bool hasPlayedJumpAnimation = false;
 
+    private Collider2D playerCollider;
     private GameObject aimUIInstance;
     private float lastRollTime; // 마지막 구르기 시간
 
@@ -26,6 +27,7 @@ public class PlayerController : MonoBehaviour
 
     void Awake()
     {
+        playerCollider = GetComponent<Collider2D>();
         movement = GetComponent<PlayerMovement>();
         animator = GetComponentInChildren<Animator>();
         status = new PlayerStatus(100f);
@@ -69,6 +71,12 @@ public class PlayerController : MonoBehaviour
     public void OnRoll()
     {
         lastRollTime = Time.time;
+    }
+
+    public void SetInvincibility(bool invincible)
+    {
+        gameObject.layer = LayerMask.NameToLayer(invincible ? "PlayerInvincible" : "Player");
+        // 프로젝트 세팅에서 Enemy공격 충돌 해제
     }
 
     public PlayerMovement Movement => movement;
