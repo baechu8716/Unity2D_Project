@@ -5,6 +5,7 @@ using UnityEngine;
 public class PlayerMovement : MonoBehaviour
 {
     private Rigidbody2D rb;
+    [SerializeField] private float _rollspeed = 2f;
     [SerializeField] private float moveSpeed = 5f;
     [SerializeField] private float jumpForce = 5f;
     [SerializeField] private float fallMultiplier = 2.5f; // 떨어질 때 더 빨리 떨어지도록
@@ -56,7 +57,7 @@ public class PlayerMovement : MonoBehaviour
     {
         if (IsGrounded())
         {
-            float rollSpeed = moveSpeed * 1.5f;
+            float rollSpeed = moveSpeed * _rollspeed;
             rb.velocity = new Vector2(isFacingRight ? rollSpeed : -rollSpeed, rb.velocity.y);
         }
     }
@@ -81,6 +82,15 @@ public class PlayerMovement : MonoBehaviour
         else if (rb.velocity.y > 0 && !Input.GetButton("Jump"))
         {
             rb.velocity += Vector2.up * Physics2D.gravity.y * (lowJumpMultiplier - 1) * Time.fixedDeltaTime;
+        }
+    }
+
+    void OnDrawGizmos()
+    {
+        if (groundCheck != null && groundRadius > 0)
+        {
+            Gizmos.color = Color.green; // 초록색으로 설정
+            Gizmos.DrawWireSphere(groundCheck.position, groundRadius); // groundCheck 주변 원 그리기
         }
     }
 }

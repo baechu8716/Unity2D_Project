@@ -1,6 +1,5 @@
-using System.Collections;
-using System.Collections.Generic;
 using UnityEngine;
+
 
 public class IdleState : BaseState
 {
@@ -8,12 +7,14 @@ public class IdleState : BaseState
 
     public override void Enter()
     {
-        player.Animator.Play("idle");
-        player.Animator.Update(0f); // 즉시 업데이트
+        player.Animator.Play("Idle");
+        player.Animator.Update(0f);
     }
 
     public override void Execute()
     {
+        if (player == null || player.Movement == null) return;
+
         float moveInput = Input.GetAxisRaw("Horizontal");
         if (moveInput != 0)
             player.ChangeState(EPlayerState.Move);
@@ -21,6 +22,8 @@ public class IdleState : BaseState
             player.ChangeState(EPlayerState.Jump);
         if (Input.GetKeyDown(KeyCode.LeftShift) && player.CanRoll())
             player.ChangeState(EPlayerState.Roll);
+        if (!player.Movement.IsGrounded() && player.Movement.VerticalVelocity < 0)
+            player.ChangeState(EPlayerState.Fall); // 공중 낙하 시 FallState로
     }
 
     public override void Exit() { }
@@ -32,12 +35,14 @@ public class MoveState : BaseState
 
     public override void Enter()
     {
-        player.Animator.Play("run");
-        player.Animator.Update(0f); // 즉시 업데이트
+        player.Animator.Play("Run");
+        player.Animator.Update(0f);
     }
 
     public override void Execute()
     {
+        if (player == null || player.Movement == null) return;
+
         float moveInput = Input.GetAxisRaw("Horizontal");
         player.Movement.Move(moveInput);
 
@@ -47,6 +52,8 @@ public class MoveState : BaseState
             player.ChangeState(EPlayerState.Jump);
         if (Input.GetKeyDown(KeyCode.LeftShift) && player.CanRoll())
             player.ChangeState(EPlayerState.Roll);
+        if (!player.Movement.IsGrounded() && player.Movement.VerticalVelocity < 0)
+            player.ChangeState(EPlayerState.Fall); // 공중 낙하 시 FallState로
     }
 
     public override void Exit() { }
@@ -54,32 +61,35 @@ public class MoveState : BaseState
 
 public class JumpState : BaseState
 {
+    private float jumpTime;
+    private readonly float minJumpAnimTime = 0.3f; // 적절한 시간으로 조정
+    private float previousYVelocity; // 이전 프레임의 yVelocity
+
     public JumpState(PlayerController player) : base(player) { }
 
     public override void Enter()
     {
         player.Movement.Jump();
-
-        if (!player.HasPlayedJumpAnimation)
-        {
-            player.Animator.Play("j_up", 0, 0f);
-            player.Animator.Update(0f); // 즉시 업데이트
-            player.HasPlayedJumpAnimation = true;
-        }
+        jumpTime = 0f;
+        player.Animator.Play("Jump", 0, 0f);
+        player.Animator.Update(0f);
+        player.HasPlayedJumpAnimation = true;
+        previousYVelocity = player.Movement.VerticalVelocity;
     }
 
     public override void Execute()
     {
+        jumpTime += Time.deltaTime;
         float moveInput = Input.GetAxisRaw("Horizontal");
         player.Movement.Move(moveInput);
 
         float yVelocity = player.Movement.VerticalVelocity;
-        if (yVelocity < 0)
-        {
-            player.ChangeState(EPlayerState.Fall);
-        }
 
-        if (player.Status.IsGrounded.Value)
+        if (jumpTime >= minJumpAnimTime && yVelocity < previousYVelocity && yVelocity < -5f && !player.Movement.IsGrounded())
+            player.ChangeState(EPlayerState.Fall);
+
+        // 일정 시간 이후에만 착지를 체크
+        if (jumpTime >= minJumpAnimTime && player.Movement.IsGrounded())
         {
             player.HasPlayedJumpAnimation = false;
             player.ChangeState(EPlayerState.Idle);
@@ -95,17 +105,18 @@ public class FallState : BaseState
 
     public override void Enter()
     {
-
-        player.Animator.Play("j_down", 0, 0f);
-        player.Animator.Update(0f); // 즉시 업데이트
+        player.Animator.Play("Fall", 0, 0f);
+        player.Animator.Update(0f);
     }
 
     public override void Execute()
     {
+        if (player == null || player.Movement == null) return;
+
         float moveInput = Input.GetAxisRaw("Horizontal");
         player.Movement.Move(moveInput);
 
-        if (player.Status.IsGrounded.Value)
+        if (player.Movement.IsGrounded())
         {
             player.HasPlayedJumpAnimation = false;
             player.ChangeState(EPlayerState.Idle);
@@ -125,8 +136,8 @@ public class RollState : BaseState
     public override void Enter()
     {
         if (!player.CanRoll()) return;
-        player.Animator.Play("roll", 0, 0f);
-        player.Animator.Update(0f); // 즉시 업데이트
+        player.Animator.Play("Roll", 0, 0f);
+        player.Animator.Update(0f);
         player.Movement.Roll();
         player.OnRoll();
         rollTimer = 0f;
@@ -134,11 +145,11 @@ public class RollState : BaseState
 
     public override void Execute()
     {
+        if (player == null) return;
+
         rollTimer += Time.deltaTime;
         if (rollTimer >= rollDuration)
-        {
             player.ChangeState(EPlayerState.Idle);
-        }
     }
 
     public override void Exit() { }
