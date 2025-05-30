@@ -123,12 +123,6 @@ public class PlayerController : MonoBehaviour
 
     public void FireArrow()
     {
-        if (arrowPrefab == null || firePoint == null)
-        {
-            Debug.LogError("Arrow Prefab or Fire Point is not assigned!");
-            return;
-        }
-
         Vector2 aimPosition = aimUIInstance.transform.position;
         Vector2 direction = (aimPosition - (Vector2)firePoint.position).normalized;
 
