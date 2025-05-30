@@ -9,5 +9,6 @@ public enum EPlayerState
     Jump,
     Fall,
     Roll,
-    Attack
+    Attack,
+    MeleeAttack
 }

@@ -5,9 +5,9 @@ using UnityEngine;
 public class PlayerMovement : MonoBehaviour
 {
     private Rigidbody2D rb;
-    [SerializeField] private float _rollspeed = 2f;
-    [SerializeField] private float moveSpeed = 5f;
-    [SerializeField] private float jumpForce = 5f;
+    [SerializeField] private float _rollspeed = 2f; // 구르기 속도
+    [SerializeField] private float moveSpeed = 5f; // 플레이어 속도
+    [SerializeField] private float jumpForce = 5f; // 점프 힘
     [SerializeField] private float fallMultiplier = 2.5f; // 떨어질 때 더 빨리 떨어지도록
     [SerializeField] private float lowJumpMultiplier = 2f; // 낮은 점프 조정
     [SerializeField] private Transform groundCheck; // 지면 체크 포인트
@@ -15,16 +15,12 @@ public class PlayerMovement : MonoBehaviour
     [SerializeField] private LayerMask groundLayer; // 지면 레이어
 
     private bool isFacingRight = true; // 기본적으로 오른쪽을 향함
-    public bool IsFacingRight => isFacingRight;
+    public bool IsFacingRight => isFacingRight; // 기본 바라보는 방향이 오른쪽
     public float VerticalVelocity => rb.velocity.y;
 
     void Awake()
     {
         rb = GetComponent<Rigidbody2D>();
-        if (groundCheck == null)
-        {
-
-        }
     }
 
     private void Update()
@@ -47,9 +43,6 @@ public class PlayerMovement : MonoBehaviour
         if (IsGrounded())
         {
             rb.velocity = new Vector2(rb.velocity.x, jumpForce);
-        }
-        else
-        {
         }
     }
 
@@ -87,9 +80,10 @@ public class PlayerMovement : MonoBehaviour
 
     void OnDrawGizmos()
     {
+        // 착지 지점 기즈모 
         if (groundCheck != null && groundRadius > 0)
         {
-            Gizmos.color = Color.green; // 초록색으로 설정
+            Gizmos.color = Color.green; 
             Gizmos.DrawWireSphere(groundCheck.position, groundRadius); // groundCheck 주변 원 그리기
         }
     }

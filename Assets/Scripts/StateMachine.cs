@@ -5,7 +5,7 @@ using UnityEngine;
 
 public class StateMachine
 {
-    private BaseState currentState;
+    public BaseState currentState;
     private Dictionary<EPlayerState, BaseState> states = new Dictionary<EPlayerState, BaseState>();
 
     public void AddState(EPlayerState stateType, BaseState state)
