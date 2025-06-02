@@ -310,7 +310,7 @@ public class AttackState : BaseState
 public class MeleeAttackState : BaseState
 {
     private float attackAnimDuration; // 애니메이션 길이를 저장할 변수
-    private readonly float ATTACK_COOLDOWN = 1f; // 근접 공격 쿨타임 (예: 1초)
+    // private readonly float ATTACK_COOLDOWN = 1f; // 근접 공격 쿨타임 (예: 1초)
 
     // 공격 판정 관련 (PlayerController에서 처리하도록 위임 가능)
     // private readonly float ATTACK_RANGE = 1.5f;
