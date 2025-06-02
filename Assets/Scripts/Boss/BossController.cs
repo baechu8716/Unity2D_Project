@@ -25,7 +25,7 @@ public class BossController : MonoBehaviour
 
     [Header("Attack Settings")]
     public float generalAttackCooldown = 3f;
-    public float rangedAttackDistanceThreshold = 10f; // 이 거리보다 멀면 원거리
+    public float rangedAttackDistanceThreshold = 7f; // 이 거리보다 멀면 원거리
     // 근접 공격 범위, 판정 등은 MeleeAttackState 또는 여기서 직접 처리
 
     [Header("Flame Skill")]
@@ -47,7 +47,7 @@ public class BossController : MonoBehaviour
     private float currentFireRainCooldown;
 
     public BossStateMachine StateMachine { get; private set; }
-    private bool isFacingRight = false;
+    private bool isFacingRight = true;
 
     void Awake()
     {
@@ -134,17 +134,25 @@ public class BossController : MonoBehaviour
 
     public void PerformRangedAttack()
     {
-        //Animator.Play("RangeAttack");
-        Debug.Log("보스 : 원거리 공격");
         if (rangedAttackPrefab != null && firePoint != null)
         {
             GameObject projectile = Instantiate(rangedAttackPrefab, firePoint.position, Quaternion.identity);
-            // projectile에 방향 설정 및 속도 부여 로직 추가 (예: projectile.GetComponent<ProjectileScript>().SetDirection(GetDirectionToPlayer());)
-            // 투사체가 플레이어를 향하도록 회전
-            Vector2 direction = GetDirectionToPlayer();
-            float angle = Mathf.Atan2(direction.y, direction.x) * Mathf.Rad2Deg;
-            projectile.transform.rotation = Quaternion.AngleAxis(angle, Vector3.forward);
+
+            Vector2 direction = GetDirectionToPlayer().normalized;
+            projectile.transform.right = direction; // Sprite 회전 (transform.rotation으로도 가능)
+
+            // Rigidbody2D를 통한 이동 처리
+            Rigidbody2D rb = projectile.GetComponent<Rigidbody2D>();
+            if (rb != null)
+            {
+                float speed = 8f; // 발사 속도
+                rb.velocity = direction * speed;
+            }
+
+            // 일정 시간 후 제거
+            Destroy(projectile, 3f);
         }
+
         CurrentGeneralAttackCooldown = generalAttackCooldown;
     }
 

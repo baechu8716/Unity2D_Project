@@ -20,7 +20,7 @@ public class BossIdleState : BossBaseState
             stateMachine.ChangeState(EBossState.FlyingAttack);
             return;
         }
-        // 다음 우선 순위: Pillar Skill
+        // 다음 우선 순위: Flame Skill
         if (boss.CurrentFlameSkillCooldown <= 0)
         {
             stateMachine.ChangeState(EBossState.FlameAttack);
@@ -45,7 +45,7 @@ public class BossChaseState : BossBaseState
 
     public override void Enter()
     {
-        boss.Animator.Play("Walk"); // "Move" 또는 "Run" 애니메이션 이름 확인
+        boss.Animator.Play("Walk"); 
     }
 
     public override void Execute()
@@ -122,7 +122,7 @@ public class BossChooseAttackState : BossBaseState
         }
 
         // 여기서 바로 거리 판단 후 상태 변경
-        if (boss.GetPlayerDistance() > boss.rangedAttackDistanceThreshold)
+        if (boss.GetPlayerDistance() <= boss.rangedAttackDistanceThreshold)
         {
             stateMachine.ChangeState(EBossState.RangedAttack);
         }
