@@ -22,7 +22,7 @@ public class BossController : MonoBehaviour, IDamageable
     [Header("Detection & Movement")]
     public float playerDetectionRange = 15f;
     public float maintainDistanceRange = 3f;
-    private bool isPlayerDead = false;
+    private bool isPlayerDead;
 
     [Header("General Attack (Ranged/Melee)")]
     public float generalAttackCooldown = 3f;
@@ -49,6 +49,9 @@ public class BossController : MonoBehaviour, IDamageable
     private float currentFlyingSkillActiveTime;
     private float currentFireRainCooldown;
     private Vector3 initialGroundPosition;
+
+    [Header("UI")] // UI 관련 헤더 추가
+    public GameObject bossHpUiGameObject; // 인스펙터에서 보스 HP UI 게임 오브젝트를 연결
 
 
     private bool isFacingRight = true; // 초기 방향 (Awake에서 스케일 기반으로 재설정)
@@ -98,7 +101,7 @@ public class BossController : MonoBehaviour, IDamageable
 
     private void HandleHealthChanged(float newHP)
     {
-        Debug.Log($"Boss HP Changed to: {newHP}");
+        Debug.Log($"보스 HP : {newHP}");
         if (newHP <= 0 && StateMachine.CurrentState is not BossDieState) // Die 상태 중복 진입 방지 (DieState 추가 시)
         {
             Die();
@@ -113,58 +116,90 @@ public class BossController : MonoBehaviour, IDamageable
 
     void Update()
     {
-        // 플레이어 사망 시 처리 또는 플레이어가 없을 경우
-        if (playerTransform == null || !playerTransform.gameObject.activeInHierarchy || isPlayerDead)
+        // 1. 보스 자신의 사망 상태 먼저 처리
+        if (Status != null && Status.HP.Value <= 0)
         {
-            if (!isPlayerDead && (playerTransform == null || !playerTransform.gameObject.activeInHierarchy))
+            if (StateMachine.CurrentState is not BossDieState && enabled)
             {
-                // 플레이어가 처음으로 유효하지 않게 된 경우 (예: 사망 후 비활성화)
-                isPlayerDead = true; // 플레이어 사망으로 표시
-                Debug.Log("보스: 플레이어가 유효하지 않음 (사망 또는 비활성화). Idle 상태로 전환합니다.");
+                Die(); // BossDieState로 전환
             }
-
-            if (isPlayerDead && StateMachine.CurrentState is not BossIdleState && StateMachine.CurrentState is not BossDieState)
+            // 보스가 죽으면 UI를 확실히 끈다 (BossDieState.Enter 또는 HandleDeathEffectsAndCleanup에서도 처리)
+            if (bossHpUiGameObject != null && bossHpUiGameObject.activeSelf)
             {
-                StateMachine.ChangeState(EBossState.Idle); // Idle 상태로 전환
+                bossHpUiGameObject.SetActive(false);
             }
-             return; // 여기서 리턴하면 아래의 HandleCooldowns, StateMachine.Update, FlipTowardsPlayer 등이 실행되지 않음
-        }
-        else
-        {
-            isPlayerDead = false; // 플레이어가 유효하면 사망 상태 해제
-        }
-
-
-        if (!enabled && StateMachine.CurrentState is BossDieState)
-        {
-            return;
-        }
-
-        // 플레이어가 살아있을 때만 쿨다운, FSM 업데이트, 플레이어 방향 보기 실행
-        if (!isPlayerDead)
-        {
-            HandleCooldowns(); //
-            StateMachine.Update(); //
-            if (StateMachine.CurrentState is not BossDieState) // Die 상태가 아닐 때만 플레이어 방향으로 Flip
+            // 스크립트가 비활성화되었거나 Die 상태이면 더 이상 업데이트하지 않음
+            if (!enabled || StateMachine.CurrentState is BossDieState)
             {
-                FlipTowardsPlayer(); //
+                // StateMachine.Update(); // Die 상태의 Execute 로직이 있다면 실행되도록 할 수 있음
+                return;
             }
         }
-        else // 플레이어가 죽었다면 FSM 업데이트는 멈추고, 보스는 Idle 상태의 Execute만 실행 (또는 아무것도 안 함)
+
+        // 2. 플레이어 유효성 검사 및 UI 활성화/비활성화 로직
+        bool playerIsValidAndAlive = (playerTransform != null && playerTransform.gameObject.activeInHierarchy);
+
+        if (playerIsValidAndAlive)
         {
-            if (StateMachine.CurrentState is BossIdleState) // 이미 Idle 상태라면 Idle의 Execute 실행
+            // 플레이어가 유효하고 살아있다면, 거리 기반으로 UI 관리
+            if (bossHpUiGameObject != null)
             {
-                StateMachine.Update(); // Idle 애니메이션 유지 등
+                float distanceToPlayer = GetPlayerDistance();
+                if (distanceToPlayer <= playerDetectionRange)
+                {
+                    if (!bossHpUiGameObject.activeSelf) // 현재 비활성화 상태일 때만 활성화
+                    {
+                        bossHpUiGameObject.SetActive(true);
+                    }
+                }
+                else
+                {
+                    if (bossHpUiGameObject.activeSelf) // 현재 활성화 상태일 때만 비활성화
+                    {
+                        bossHpUiGameObject.SetActive(false);
+                    }
+                }
             }
+
+            // 플레이어가 유효할 때 정상적인 보스 로직 수행
+            HandleCooldowns();
+            StateMachine.Update();
+            // Die 상태가 아닐 때만 플레이어 방향으로 Flip (FlipTowardsPlayer는 playerTransform이 null이 아닐 때만 호출되어야 함)
+            if (StateMachine.CurrentState is not BossDieState)
+            {
+                FlipTowardsPlayer();
+            }
+        }
+        else // 플레이어가 유효하지 않거나 죽었을 경우
+        {
+            // HP UI 비활성화
+            if (bossHpUiGameObject != null && bossHpUiGameObject.activeSelf)
+            {
+                bossHpUiGameObject.SetActive(false);
+            }
+
+            // 플레이어가 유효하지 않다면 보스는 Idle 상태로 (이미 죽은 상태가 아니라면)
+            if (StateMachine.CurrentState is not BossIdleState && StateMachine.CurrentState is not BossDieState)
+            {
+                StateMachine.ChangeState(EBossState.Idle);
+            }
+            // 현재 상태(대부분 Idle)의 Execute는 계속 실행되도록 함
+            StateMachine.Update();
         }
     }
 
     public void NotifyPlayerDeath()
     {
-        isPlayerDead = true;
+        isPlayerDead = true; // isPlayerDead 플래그가 있다면 계속 사용
+        Debug.Log("보스: 플레이어 사망 알림 받음. Idle 상태로 전환 준비.");
         if (StateMachine.CurrentState is not BossIdleState && StateMachine.CurrentState is not BossDieState)
         {
             StateMachine.ChangeState(EBossState.Idle);
+        }
+        // 플레이어가 죽었으므로 보스 HP UI도 비활성화
+        if (bossHpUiGameObject != null && bossHpUiGameObject.activeSelf)
+        {
+            bossHpUiGameObject.SetActive(false);
         }
     }
 
@@ -411,19 +446,23 @@ public class BossController : MonoBehaviour, IDamageable
 
     public void HandleDeathEffectsAndCleanup()
     {
-        StopAllCoroutines(); // 모든 코루틴 중지
+        if (bossHpUiGameObject != null) // 보스 사망 시 HP UI 비활성화
+        {
+            bossHpUiGameObject.SetActive(false);
+        }
+        StopAllCoroutines();
         if (Rb != null)
         {
             Rb.velocity = Vector2.zero;
-            Rb.isKinematic = true; // 물리 효과 중지
+            Rb.isKinematic = true;
         }
         Collider2D col = GetComponent<Collider2D>();
-        if (col != null) col.enabled = false; // 콜라이더 비활성화
+        if (col != null) col.enabled = false;
 
-        // 예: 아이템 드랍, 점수 처리, 몇 초 뒤 오브젝트 파괴 등
         Destroy(gameObject, 5f); // 5초 뒤 오브젝트 파괴
-        enabled = false; // 모든 로직 처리 후 스크립트 비활성화
+        enabled = false; // 스크립트 비활성화
     }
+
     void OnDrawGizmosSelected()
     {
         Gizmos.color = Color.red;
