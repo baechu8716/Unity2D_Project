@@ -188,6 +188,7 @@ public class AttackState : BaseState
             totalAnimTime = 1f; 
             normalizedDrawTime = drawFrameTime / totalAnimTime; 
         }
+        player.SetCameraZoom(player.zoomInSize, player.zoomTransitionDuration);
     }
 
     public override void Execute()
@@ -254,6 +255,8 @@ public class AttackState : BaseState
     public override void Exit()
     {
         player.Animator.speed = 1f; // 상태 종료 시 애니메이션 속도 복원
+        // AttackState 종료 시 카메라 줌 아웃
+        player.SetCameraZoom(player.zoomOutSize, player.zoomTransitionDuration);
     }
 
     public bool IsWaitingForFire()

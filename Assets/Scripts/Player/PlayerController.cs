@@ -33,14 +33,16 @@ public class PlayerController : MonoBehaviour, IDamageable
     private float lastRollTime;
 
     [Header("Aiming & Camera")]
-    [SerializeField] private GameObject aimUIPrefab;     // 조준 UI 프리팹
-    [SerializeField] private CinemachineVirtualCamera virtualCamera; // 시네머신 가상 카메라
-    [SerializeField] private float zoomInSize = 3f;     // 줌 인 크기
-    [SerializeField] private float zoomOutSize = 6f;    // 줌 아웃 크기
-    [SerializeField] private LineRenderer angleIndicatorRenderer; // 각도 지시선 LineRenderer
-    [SerializeField] private float angleIndicatorLength = 1.5f; // 각도 지시선 길이
-    [SerializeField] private Color validAngleColor = Color.green; // 유효 각도 색상
-    [SerializeField] private Color invalidAngleColor = Color.red; // 무효 각도 색상
+    [SerializeField] public GameObject aimUIPrefab;     // 조준 UI 프리팹
+    [SerializeField] public CinemachineVirtualCamera virtualCamera; // 시네머신 가상 카메라
+    [SerializeField] public float zoomInSize = 3f;     // 줌 인 크기
+    [SerializeField] public float zoomOutSize = 6f;    // 줌 아웃 크기
+    [SerializeField] public LineRenderer angleIndicatorRenderer; // 각도 지시선 LineRenderer
+    [SerializeField] public float angleIndicatorLength = 1.5f; // 각도 지시선 길이
+    [SerializeField] public Color validAngleColor = Color.green; // 유효 각도 색상
+    [SerializeField] public Color invalidAngleColor = Color.red; // 무효 각도 색상
+    [SerializeField] public float zoomTransitionDuration = 0.3f; // 줌 전환에 걸리는 시간 (초)
+    private Coroutine zoomCoroutine; // 현재 실행 중인 줌 코루틴을 저장하기 위한 변수
     private GameObject aimUIInstance;
 
 
@@ -142,15 +144,35 @@ public class PlayerController : MonoBehaviour, IDamageable
 
     private void HandleZoom()
     {
-        if (Input.GetMouseButtonDown(1) && virtualCamera != null) // 우클릭 시 줌 인
-        {
-            virtualCamera.m_Lens.OrthographicSize = zoomInSize;
-        }
-        else if (Input.GetMouseButtonUp(1) && virtualCamera != null) // 우클릭 뗄 시 줌 아웃
-        {
-            virtualCamera.m_Lens.OrthographicSize = zoomOutSize;
-        }
+        if (virtualCamera == null) return;
+        
     }
+
+    public void SetCameraZoom(float targetSize, float duration)
+    {
+        if (virtualCamera == null) return;
+        if (zoomCoroutine != null) StopCoroutine(zoomCoroutine);
+        zoomCoroutine = StartCoroutine(SmoothZoom(virtualCamera.m_Lens.OrthographicSize, targetSize, duration));
+    }
+
+    public void ForceCameraZoomOutOnHit() // 메서드 이름 명확화
+    {
+        SetCameraZoom(zoomOutSize, zoomTransitionDuration);
+    }
+
+    private IEnumerator SmoothZoom(float startSize, float endSize, float duration)
+    {
+        float elapsedTime = 0f;
+        while (elapsedTime < duration)
+        {
+            virtualCamera.m_Lens.OrthographicSize = Mathf.Lerp(startSize, endSize, elapsedTime / duration);
+            elapsedTime += Time.deltaTime;
+            yield return null;
+        }
+        virtualCamera.m_Lens.OrthographicSize = endSize; // 정확히 목표 크기로 설정
+        zoomCoroutine = null; // 코루틴 완료 후 null로 설정
+    }
+
 
     public void FireArrow()
     {
@@ -257,6 +279,7 @@ public class PlayerController : MonoBehaviour, IDamageable
         if (Status.HP.Value > 0) 
         {
             ChangeState(EPlayerState.Hit); // Hit 상태로 전환
+            ForceCameraZoomOutOnHit();
         }
     }
 
@@ -273,6 +296,5 @@ public class PlayerController : MonoBehaviour, IDamageable
             boss.NotifyPlayerDeath();
         }
     }
-
 
 }
