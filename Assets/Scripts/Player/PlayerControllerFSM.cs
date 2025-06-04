@@ -5,292 +5,247 @@ using UnityEngine;
 
 public class IdleState : BaseState
 {
-    public IdleState(PlayerController player) : base(player) { }
+    public IdleState(PlayerController player) : base(player) { } 
 
     public override void Enter()
     {
-        player.Animator.Play("Idle");
-        player.Animator.Update(0f);
+        player.Animator.Play("Idle"); 
     }
 
     public override void Execute()
     {
-        float moveInput = Input.GetAxisRaw("Horizontal");
+        if (player == null || player.Movement == null) return; 
 
+        float moveInput = Input.GetAxisRaw("Horizontal"); 
         if (moveInput != 0)
-            player.ChangeState(EPlayerState.Move);
-        if (Input.GetButtonDown("Jump") && player.Movement.IsGrounded())
-            player.ChangeState(EPlayerState.Jump);
-        if (Input.GetKeyDown(KeyCode.LeftShift) && player.CanRoll())
-            player.ChangeState(EPlayerState.Roll);
-        if (!player.Movement.IsGrounded() && player.Movement.VerticalVelocity < 0)
-            player.ChangeState(EPlayerState.Fall);
-        if (Input.GetMouseButtonDown(1))
-            player.ChangeState(EPlayerState.Attack);
+            player.ChangeState(EPlayerState.Move); 
+        if (Input.GetButtonDown("Jump") && player.Movement.IsGrounded()) 
+            player.ChangeState(EPlayerState.Jump); 
+        if (Input.GetKeyDown(KeyCode.LeftShift) && player.CanRoll()) 
+            player.ChangeState(EPlayerState.Roll); 
+        if (!player.Movement.IsGrounded() && player.Movement.VerticalVelocity < 0) 
+            player.ChangeState(EPlayerState.Fall); 
+        if (Input.GetMouseButtonDown(1)) 
+            player.ChangeState(EPlayerState.Attack); 
         if (Input.GetMouseButtonDown(0) && player.CanMeleeAttack())
         {
-            player.ChangeState(EPlayerState.MeleeAttack);
+            player.ChangeState(EPlayerState.MeleeAttack); 
         }
     }
-
     public override void Exit() { }
 }
 
 public class MoveState : BaseState
 {
-    public MoveState(PlayerController player) : base(player) { }
-
-    public override void Enter()
-    {
-        player.Animator.Play("Run");
-        player.Animator.Update(0f);
-    }
-
+    public MoveState(PlayerController player) : base(player) { } 
+    public override void Enter() { player.Animator.Play("Run"); } 
     public override void Execute()
     {
-        float moveInput = Input.GetAxisRaw("Horizontal");
-        player.Movement.Move(moveInput);
+        float moveInput = Input.GetAxisRaw("Horizontal"); 
+        player.Movement.Move(moveInput); 
 
-        if (moveInput == 0)
-            player.ChangeState(EPlayerState.Idle);
-        if (Input.GetButtonDown("Jump") && player.Movement.IsGrounded())
-            player.ChangeState(EPlayerState.Jump);
-        if (Input.GetKeyDown(KeyCode.LeftShift) && player.CanRoll())
-            player.ChangeState(EPlayerState.Roll);
-        if (!player.Movement.IsGrounded() && player.Movement.VerticalVelocity < 0)
-            player.ChangeState(EPlayerState.Fall);
-        if (Input.GetMouseButtonDown(1))
-            player.ChangeState(EPlayerState.Attack);
-        if (Input.GetMouseButtonDown(0) && player.CanMeleeAttack())
-        {
-            player.ChangeState(EPlayerState.MeleeAttack);
-        }
+        if (moveInput == 0) player.ChangeState(EPlayerState.Idle); 
+        if (Input.GetButtonDown("Jump") && player.Movement.IsGrounded()) player.ChangeState(EPlayerState.Jump); 
+        if (Input.GetKeyDown(KeyCode.LeftShift) && player.CanRoll()) player.ChangeState(EPlayerState.Roll); 
+        if (!player.Movement.IsGrounded() && player.Movement.VerticalVelocity < 0) player.ChangeState(EPlayerState.Fall); 
+        if (Input.GetMouseButtonDown(1)) player.ChangeState(EPlayerState.Attack); 
+        if (Input.GetMouseButtonDown(0) && player.CanMeleeAttack()) player.ChangeState(EPlayerState.MeleeAttack); 
     }
-
     public override void Exit() { }
 }
 
 public class JumpState : BaseState
 {
-    private float jumpTime;
-    private readonly float minJumpAnimTime = 0.3f; // ÀûÀıÇÑ ½Ã°£À¸·Î Á¶Á¤
-    private float previousYVelocity; // ÀÌÀü ÇÁ·¹ÀÓÀÇ yVelocity
+    private float jumpTime; 
+    private readonly float minJumpAnimTime = 0.3f; 
 
-    public JumpState(PlayerController player) : base(player) { }
+    public JumpState(PlayerController player) : base(player) { } 
 
     public override void Enter()
     {
-        player.Movement.Jump();
-        jumpTime = 0f;
-        player.Animator.Play("Jump", 0, 0f);
-        player.Animator.Update(0f);
-        player.HasPlayedJumpAnimation = true;
-        previousYVelocity = player.Movement.VerticalVelocity;
+        player.Movement.Jump(); 
+        jumpTime = 0f; 
+        player.Animator.Play("Jump", 0, 0f); 
+        player.HasPlayedJumpAnimation = true; 
     }
 
     public override void Execute()
     {
-        jumpTime += Time.deltaTime;
-        float moveInput = Input.GetAxisRaw("Horizontal");
-        player.Movement.Move(moveInput);
+        jumpTime += Time.deltaTime; //
+        float moveInput = Input.GetAxisRaw("Horizontal"); 
+        player.Movement.Move(moveInput); //
 
-        float yVelocity = player.Movement.VerticalVelocity;
+        if (Input.GetMouseButtonDown(1)) player.ChangeState(EPlayerState.Attack); 
 
-        if (Input.GetMouseButtonDown(1))
-            player.ChangeState(EPlayerState.Attack);
-
-        if (jumpTime >= minJumpAnimTime && yVelocity < previousYVelocity && yVelocity < -5f && !player.Movement.IsGrounded())
-            player.ChangeState(EPlayerState.Fall);
-
-        // ÀÏÁ¤ ½Ã°£ ÀÌÈÄ¿¡¸¸ ÂøÁö¸¦ Ã¼Å©
-        if (jumpTime >= minJumpAnimTime && player.Movement.IsGrounded())
+        // ê¸°ì¡´ FallState ì „í™˜ ë¡œì§ ìœ ì§€ ë˜ëŠ” ë‹¨ìˆœí™”
+        if (player.Movement.VerticalVelocity < -0.1f && !player.Movement.IsGrounded()) // ì„ê³„ê°’ ì‚¬ìš©
         {
-            player.HasPlayedJumpAnimation = false;
-            player.ChangeState(EPlayerState.Idle);
+            if (jumpTime >= minJumpAnimTime) // ìµœì†Œ ì í”„ ì• ë‹ˆë©”ì´ì…˜ ì‹œê°„ ì´í›„ì—ë§Œ Fallë¡œ ì „í™˜
+                player.ChangeState(EPlayerState.Fall); 
+        }
+
+
+        if (jumpTime >= minJumpAnimTime && player.Movement.IsGrounded()) 
+        {
+            player.HasPlayedJumpAnimation = false; 
+            player.ChangeState(EPlayerState.Idle); 
         }
     }
-
     public override void Exit() { }
 }
 
 public class FallState : BaseState
 {
-    public FallState(PlayerController player) : base(player) { }
-
-    public override void Enter()
-    {
-        player.Animator.Play("Fall", 0, 0f);
-        player.Animator.Update(0f);
-    }
-
+    public FallState(PlayerController player) : base(player) { } 
+    public override void Enter() { player.Animator.Play("Fall", 0, 0f); } 
     public override void Execute()
     {
-        if (player == null || player.Movement == null) return;
-
-        float moveInput = Input.GetAxisRaw("Horizontal");
-        player.Movement.Move(moveInput);
-
-        if (player.Movement.IsGrounded())
+        if (player == null || player.Movement == null) return; 
+        float moveInput = Input.GetAxisRaw("Horizontal"); 
+        player.Movement.Move(moveInput); 
+        if (player.Movement.IsGrounded()) 
         {
-            player.HasPlayedJumpAnimation = false;
-            player.ChangeState(EPlayerState.Idle);
+            player.HasPlayedJumpAnimation = false; 
+            player.ChangeState(EPlayerState.Idle); 
         }
     }
-
     public override void Exit() { }
 }
 
 public class RollState : BaseState
 {
-    private float rollDuration = 0.5f;
-    private float rollTimer;
+    private float rollDuration = 0.5f; // êµ¬ë¥´ê¸° ì§€ì†ì‹œê°„
+    private float rollTimer; 
 
-    public RollState(PlayerController player) : base(player) { }
+    public RollState(PlayerController player) : base(player) { } 
 
     public override void Enter()
     {
-        if (!player.CanRoll()) return;
-        player.Animator.Play("Roll", 0, 0f);
-        player.Animator.Update(0f);
-        player.Movement.Roll();
-        player.OnRoll();
-        player.SetInvincibility(true);
-        rollTimer = 0f;
+        // CanRollì€ Idle/Moveì—ì„œ ì´ë¯¸ ì²´í¬í•˜ê³  ì˜¤ë¯€ë¡œ ì—¬ê¸°ì„  ìƒëµ ê°€ëŠ¥, í˜¹ì€ ì´ì¤‘ ì²´í¬
+        player.Animator.Play("Roll", 0, 0f); 
+        player.Movement.Roll(); // ì‹¤ì œ ì´ë™ ë¡œì§ í˜¸ì¶œ
+        player.PerformRoll(); // PlayerControllerì˜ ì¿¨íƒ€ì„ ê´€ë¦¬ ë©”ì„œë“œ í˜¸ì¶œ (ê¸°ì¡´ OnRoll ëŒ€ì²´)
+        player.SetInvincibility(true); // ë¬´ì  ì„¤ì •
+        rollTimer = 0f; 
     }
 
     public override void Execute()
     {
-        if (player == null) return;
-
-        rollTimer += Time.deltaTime;
+        if (player == null) return; 
+        rollTimer += Time.deltaTime; 
         if (rollTimer >= rollDuration)
-            player.ChangeState(EPlayerState.Idle);
+            player.ChangeState(EPlayerState.Idle); 
     }
 
     public override void Exit()
     {
-        player.SetInvincibility(false);
+        player.SetInvincibility(false); // ë¬´ì  í•´ì œ
     }
 
 }
 
 public class AttackState : BaseState
 {
-    private float attackTimer = 0f;
-    private bool waitingForFire = false; // È°À» ´ç±â°í ¹ß»ç¸¦ ±â´Ù¸®´Â »óÅÂ
-    private bool arrowFired = false;     // È­»ìÀÌ ¹ß»çµÇ¾ú´ÂÁö ¿©ºÎ
+    private float attackTimer = 0f; 
+    private bool waitingForFire = false; 
+    private bool arrowFired = false; 
 
-    private AnimationClip attackClip;
-    private float frameRate;
-    private float drawFrameTime;      // È° ´ç±â±â ¿Ï·á ½Ã°£ (ÃÊ)
-    private float totalAnimTime;      // ÀüÃ¼ Attack ¾Ö´Ï¸ŞÀÌ¼Ç ½Ã°£ (ÃÊ)
-    private float normalizedDrawTime; // Á¤±ÔÈ­µÈ È° ´ç±â±â ¿Ï·á ½Ã°£
+    private AnimationClip attackClip; 
+    private float frameRate; 
+    private float drawFrameTime;  // í™œ ë‹¹ê¸°ê¸° ì™„ë£Œ ì‹œê°„ (ì´ˆ) - ì• ë‹ˆë©”ì´ì…˜ íŠ¹ì • í”„ë ˆì„ ê¸°ì¤€
+    private float totalAnimTime;  // ì „ì²´ Attack ì• ë‹ˆë©”ì´ì…˜ ì‹œê°„ (ì´ˆ)
+    private float normalizedDrawTime; // ì •ê·œí™”ëœ ë‹¹ê¸°ê¸° ì™„ë£Œ ì‹œê°„
 
-    public AttackState(PlayerController player) : base(player) { }
+
+    public AttackState(PlayerController player) : base(player) { } 
 
     public override void Enter()
     {
-        attackTimer = 0f;
-        waitingForFire = false;
-        arrowFired = false;
+        attackTimer = 0f; 
+        waitingForFire = false; 
+        arrowFired = false; 
 
-        player.Animator.Play("Attack", 0, 0f); // ¾Ö´Ï¸ŞÀÌ¼ÇÀ» Ã³À½ºÎÅÍ Àç»ı
-        player.Animator.speed = 1f;
+        player.Animator.Play("Attack", 0, 0f);
+        player.Animator.speed = 1f; // ì• ë‹ˆë©”ì´ì…˜ ì†ë„ ì •ìƒí™”
 
+        // ì• ë‹ˆë©”ì´ì…˜ í´ë¦½ ì •ë³´ ê°€ì ¸ì˜¤ê¸°
         attackClip = player.Animator.runtimeAnimatorController.animationClips
-            .FirstOrDefault(c => c.name == "Attack");
+                        .FirstOrDefault(c => c.name == "Attack"); // "Attack" í´ë¦½ ì°¾ê¸°
 
         if (attackClip != null)
         {
-            frameRate = attackClip.frameRate > 0 ? attackClip.frameRate : 60f;
-            drawFrameTime = 40f / frameRate;
-            totalAnimTime = attackClip.length;
-            if (totalAnimTime > 0)
-            {
-                normalizedDrawTime = drawFrameTime / totalAnimTime;
-            }
-            else
-            {
-                normalizedDrawTime = 0.5f; totalAnimTime = 1f; 
-            }
+            frameRate = attackClip.frameRate > 0 ? attackClip.frameRate : 60f; // í”„ë ˆì„ ì†ë„
+            // drawFrameTimeì€ ì• ë‹ˆë©”ì´ì…˜ì˜ íŠ¹ì • í”„ë ˆì„(ì˜ˆ: 40í”„ë ˆì„)ì„ ì‹œê°„ìœ¼ë¡œ ë³€í™˜
+            drawFrameTime = 40f / frameRate; // ì˜ˆì‹œ: 40í”„ë ˆì„ì—ì„œ ë©ˆì¶¤
+            totalAnimTime = attackClip.length; // ì „ì²´ ì• ë‹ˆë©”ì´ì…˜ ê¸¸ì´
+            normalizedDrawTime = totalAnimTime > 0 ? drawFrameTime / totalAnimTime : 0.5f; // ì •ê·œí™”ëœ ì‹œê°„ ê³„ì‚°
         }
         else
         {
-            frameRate = 60f; drawFrameTime = 40f / frameRate; totalAnimTime = 1f; normalizedDrawTime = drawFrameTime / totalAnimTime; 
+            // Attack í´ë¦½ì„ ì°¾ì§€ ëª»í•œ ê²½ìš° ê¸°ë³¸ê°’ ì„¤ì • ë˜ëŠ” ì—ëŸ¬ ì²˜ë¦¬
+            frameRate = 60f; 
+            drawFrameTime = 40f / frameRate; 
+            totalAnimTime = 1f; 
+            normalizedDrawTime = drawFrameTime / totalAnimTime; 
         }
     }
 
     public override void Execute()
     {
-        attackTimer += Time.deltaTime;
-        AnimatorStateInfo currentStateInfo = player.Animator.GetCurrentAnimatorStateInfo(0);
+        attackTimer += Time.deltaTime; 
+        AnimatorStateInfo currentStateInfo = player.Animator.GetCurrentAnimatorStateInfo(0); // í˜„ì¬ ì• ë‹ˆë©”ì´í„° ìƒíƒœ ì •ë³´
 
-        if (!currentStateInfo.IsName("Attack"))
-        {
-            // ÇöÀç AttackStateÀÌÁö¸¸, ¾Ö´Ï¸ŞÀÌÅÍ°¡ Attack ¾Ö´Ï¸ŞÀÌ¼ÇÀ» Àç»ıÇÏ°í ÀÖÁö ¾Ê´Ù¸é
-            // (¿¹: ¸Å¿ì ÂªÀº ÀüÈ¯ Áß¿¡ ´Ù¸¥ ¾Ö´Ï¸ŞÀÌ¼ÇÀÌ Àá±ñ Àç»ıµÉ °¡´É¼º)
-            // ÀÏ´ÜÀº ¾Æ¹«°Íµµ ¾È ÇÏ°Å³ª, Idle·Î º¯°æ
-            return;
-        }
+        if (!currentStateInfo.IsName("Attack")) return; // Attack ì• ë‹ˆë©”ì´ì…˜ì´ ì•„ë‹ˆë©´ ì‹¤í–‰ ì¤‘ì§€
 
-        float currentNormalizedTime = currentStateInfo.normalizedTime;
+        float currentNormalizedTime = currentStateInfo.normalizedTime % 1; // ì• ë‹ˆë©”ì´ì…˜ ë£¨í”„ ê³ ë ¤ (í˜„ì¬ëŠ” ë£¨í”„ ì•ˆ í•¨)
 
-        // 1. È° ´ç±â±â (¾ÆÁ÷ ¹ß»ç Àü, Á¶ÁØ ´ë±â »óÅÂµµ ¾Æ´Ô)
+        // 1. í™œ ë‹¹ê¸°ê¸° (ì• ë‹ˆë©”ì´ì…˜ ì •ì§€ ì „)
         if (!arrowFired && !waitingForFire)
         {
-            if (currentNormalizedTime >= normalizedDrawTime)
+            if (currentNormalizedTime >= normalizedDrawTime) // ë‹¹ê¸°ê¸° ì‹œê°„ ë„ë‹¬ ì‹œ
             {
-                player.Animator.speed = 0f; // ¸ñÇ¥ ÇÁ·¹ÀÓ¿¡¼­ ¾Ö´Ï¸ŞÀÌ¼Ç Á¤Áö
-                waitingForFire = true;     // ¹ß»ç ´ë±â »óÅÂ·Î º¯°æ
+                player.Animator.speed = 0f; // ì• ë‹ˆë©”ì´ì…˜ ì •ì§€
+                waitingForFire = true; // ë°œì‚¬ ëŒ€ê¸° ìƒíƒœë¡œ
             }
-            // È° ´ç±â´Â Áß ¿ìÅ¬¸¯ ¶¼¸é °ø°İ Ãë¼Ò
-            else if (Input.GetMouseButtonUp(1))
+            else if (Input.GetMouseButtonUp(1)) // ë‹¹ê¸°ëŠ” ì¤‘ ìš°í´ë¦­ ë–¼ë©´ ì·¨ì†Œ
             {
-                player.Animator.speed = 1f;
-                player.ChangeState(EPlayerState.Idle);
+                player.Animator.speed = 1f; 
+                player.ChangeState(EPlayerState.Idle); 
                 return;
             }
         }
 
-        // 2. ¹ß»ç ´ë±â Áß (¾Ö´Ï¸ŞÀÌ¼Ç ¸ØÃçÀÖ°í, ¾ÆÁ÷ ¹ß»ç Àü)
+        // 2. ë°œì‚¬ ëŒ€ê¸° (ì• ë‹ˆë©”ì´ì…˜ ì •ì§€, ë°œì‚¬ ì „)
         if (waitingForFire && !arrowFired)
         {
-            // ÁÂÅ¬¸¯À¸·Î ¹ß»ç
-            if (Input.GetMouseButtonDown(0))
+            if (Input.GetMouseButtonDown(0)) // ì¢Œí´ë¦­ìœ¼ë¡œ ë°œì‚¬
             {
-                player.FireArrow();          // È­»ì ¹ß»ç
-                player.Animator.speed = 1f;  // ³ª¸ÓÁö ¾Ö´Ï¸ŞÀÌ¼Ç Àç»ı
-                arrowFired = true;          // È­»ì ¹ß»çµÊ Ç¥½Ã
-                waitingForFire = false;     // ´õ´Â ¹ß»ç ´ë±â »óÅÂ°¡ ¾Æ´Ô
+                player.FireArrow(); // í™”ì‚´ ë°œì‚¬
+                player.Animator.speed = 1f; // ì• ë‹ˆë©”ì´ì…˜ ë‹¤ì‹œ ì¬ìƒ
+                arrowFired = true; // ë°œì‚¬ë¨ í‘œì‹œ
+                waitingForFire = false; // ëŒ€ê¸° ìƒíƒœ í•´ì œ
             }
-            // ¹ß»ç ´ë±â Áß ¿ìÅ¬¸¯ ¶¼¸é °ø°İ Ãë¼Ò
-            else if (Input.GetMouseButtonUp(1))
+            else if (Input.GetMouseButtonUp(1)) // ëŒ€ê¸° ì¤‘ ìš°í´ë¦­ ë–¼ë©´ ì·¨ì†Œ
             {
-                player.Animator.speed = 1f;
-                player.ChangeState(EPlayerState.Idle);
+                player.Animator.speed = 1f; 
+                player.ChangeState(EPlayerState.Idle); 
                 return;
             }
         }
 
-        // 3. È­»ì ¹ß»ç ÈÄ (¾Ö´Ï¸ŞÀÌ¼Ç ¿Ï·á ¶Ç´Â ¿¬¼Ó °ø°İÀ» À§ÇÑ ÀçÁ¶ÁØ)
+        // 3. ë°œì‚¬ í›„ (ì• ë‹ˆë©”ì´ì…˜ ì™„ë£Œ ëŒ€ê¸° ë˜ëŠ” ì—°ì† ê³µê²©)
         if (arrowFired)
         {
-            // ¾Ö´Ï¸ŞÀÌ¼ÇÀÌ ¿ÏÀüÈ÷ ³¡³µ´Ù¸é (normalizedTime >= 1.0f)
-            if (currentNormalizedTime >= 1.0f)
+            if (currentNormalizedTime >= 0.98f) // ì• ë‹ˆë©”ì´ì…˜ ê±°ì˜ ë (1.0fë¡œ ë¹„êµ ì‹œ ë¯¸ì„¸ì˜¤ì°¨ ê°€ëŠ¥ì„±)
             {
-                if (Input.GetMouseButton(1)) // ¿ìÅ¬¸¯ÀÌ ¿©ÀüÈ÷ ´­·ÁÀÖ´Ù¸é (¿¬¼Ó °ø°İ)
+                if (Input.GetMouseButton(1)) // ìš°í´ë¦­ ìœ ì§€ ì‹œ ì—°ì† ê³µê²© (ì¬ì¡°ì¤€)
                 {
-                    // »óÅÂ¸¦ ÃÊ±âÈ­ÇÏ¿© ´Ù½Ã È° ´ç±â±âºÎÅÍ ½ÃÀÛ
-                    attackTimer = 0f;
-                    waitingForFire = false; // ÀÌ °ªÀº ´ÙÀ½ ÇÁ·¹ÀÓÀÇ Ã¹ ¹øÂ° if ºí·Ï¿¡¼­ true·Î ¼³Á¤µÉ °ÍÀÓ
-                    arrowFired = false;
-                    player.Animator.Play("Attack", 0, 0f); // ¾Ö´Ï¸ŞÀÌ¼ÇÀ» Ã³À½ºÎÅÍ ´Ù½Ã
-                    player.Animator.speed = 1f;
-                    // ÇÊ¿äÇÑ º¯¼ö¸¸ ¸®¼ÂÇÏ°í ¾Ö´Ï¸ŞÀÌ¼ÇÀ» ´Ù½Ã ½ÃÀÛ
+                    // ìƒíƒœ ì¬ì§„ì…ì²˜ëŸ¼ ë™ì‘í•˜ë„ë¡ ì´ˆê¸°í™”
+                    Enter(); // ìƒíƒœ ë³€ìˆ˜ ì¬ì„¤ì • ë° ì• ë‹ˆë©”ì´ì…˜ ì²˜ìŒë¶€í„° ì¬ìƒ
                 }
-                else // ¿ìÅ¬¸¯ÀÌ ¶³¾îÁ³´Ù¸é Idle »óÅÂ·Î
+                else // ìš°í´ë¦­ ë–¼ë©´ Idleë¡œ
                 {
-                    player.ChangeState(EPlayerState.Idle);
+                    player.ChangeState(EPlayerState.Idle); 
                 }
             }
         }
@@ -298,75 +253,136 @@ public class AttackState : BaseState
 
     public override void Exit()
     {
-        player.Animator.speed = 1f; // »óÅÂ¸¦ ³ª°¥ ¶§ Ç×»ó ¾Ö´Ï¸ŞÀÌ¼Ç ¼Óµµ º¹¿ø
+        player.Animator.speed = 1f; // ìƒíƒœ ì¢…ë£Œ ì‹œ ì• ë‹ˆë©”ì´ì…˜ ì†ë„ ë³µì›
     }
 
     public bool IsWaitingForFire()
     {
-        return waitingForFire;
+        return waitingForFire; // ì™¸ë¶€ì—ì„œ ì¡°ì¤€ ìƒíƒœ í™•ì¸ìš©
     }
 }
 
 public class MeleeAttackState : BaseState
 {
-    private float attackAnimDuration; // ¾Ö´Ï¸ŞÀÌ¼Ç ±æÀÌ¸¦ ÀúÀåÇÒ º¯¼ö
-    // private readonly float ATTACK_COOLDOWN = 1f; // ±ÙÁ¢ °ø°İ ÄğÅ¸ÀÓ (¿¹: 1ÃÊ)
+    private float attackAnimDuration; 
+    private float stateTimer; 
+    private bool damageDealt; 
 
-    // °ø°İ ÆÇÁ¤ °ü·Ã (PlayerController¿¡¼­ Ã³¸®ÇÏµµ·Ï À§ÀÓ °¡´É)
-    // private readonly float ATTACK_RANGE = 1.5f;
-    // private Transform attackPoint; // PlayerController¿¡¼­ ÇÒ´ç¹Ş°Å³ª Ã£¾Æ¾ß ÇÔ
-    // private LayerMask hittableLayers; // PlayerController¿¡¼­ ¼³Á¤
+    private float damageStartTime = 0.1f; // ë°ë¯¸ì§€ íŒì • ì‹œì‘ ì‹œê°„ (ì• ë‹ˆë©”ì´ì…˜ ê¸°ì¤€)
+    private float damageEndTime = 0.4f;   // ë°ë¯¸ì§€ íŒì • ì¢…ë£Œ ì‹œê°„ (ì• ë‹ˆë©”ì´ì…˜ ê¸°ì¤€)
 
-    private float stateTimer;       // »óÅÂ°¡ ½ÃÀÛµÈ ÈÄ °æ°ú ½Ã°£
-    private bool damageDealt;       // ÀÌ¹ø °ø°İ¿¡¼­ µ¥¹ÌÁö¸¦ ÀÌ¹Ì ÀÔÇû´ÂÁö ¿©ºÎ (´ÜÀÏ Å¸°İ¿ë)
-    private float damageStartTime = 0.1f; // ¾Ö´Ï¸ŞÀÌ¼Ç ½ÃÀÛ ÈÄ µ¥¹ÌÁö ÆÇÁ¤ ½ÃÀÛ ½Ã°£
-    private float damageEndTime = 0.4f;   // µ¥¹ÌÁö ÆÇÁ¤ Á¾·á ½Ã°£
+    // PlayerControllerì—ì„œ ë°›ì•„ì˜¬ ê°’ë“¤
+    private float attackRange; 
+    private Transform attackPoint; 
+    private LayerMask hittableLayers; 
 
     public MeleeAttackState(PlayerController player) : base(player)
     {
-        // attackPoint = player.MeleeAttackPoint; // PlayerController¿¡ ÀÌ·± ÂüÁ¶°¡ ÀÖ´Ù°í °¡Á¤
-        // hittableLayers = player.EnemyLayers;   // PlayerController¿¡ ÀÌ·± ÂüÁ¶°¡ ÀÖ´Ù°í °¡Á¤
+        this.attackRange = player.meleeAttackRange;
+        this.attackPoint = player.meleeAttackPoint; 
+        this.hittableLayers = player.enemyLayers;   
     }
 
     public override void Enter()
     {
-        stateTimer = 0f;
-        damageDealt = false;
-        player.Animator.Play("MeleeAttack");
-        player.Animator.Update(0f); // ¾Ö´Ï¸ŞÀÌ¼Ç Áï½Ã ¹İ¿µ
+        stateTimer = 0f; 
+        damageDealt = false; 
+        player.Animator.Play("MeleeAttack"); // "MeleeAttack" ì• ë‹ˆë©”ì´ì…˜ ì¬ìƒ
 
-        // ¾Ö´Ï¸ŞÀÌ¼Ç ±æÀÌ °¡Á®¿À±â (¼±ÅÃÀû, Á¤È®ÇÑ Á¦¾î¸¦ À§ÇØ)
-        AnimationClip[] clips = player.Animator.runtimeAnimatorController.animationClips;
-        AnimationClip clip = System.Array.Find(clips, c => c.name == "MeleeAttack");
+        // ì• ë‹ˆë©”ì´ì…˜ ê¸¸ì´ ì„¤ì • (ì •í™•í•œ ì œì–´ë¥¼ ìœ„í•´)
+        AnimationClip clip = player.Animator.runtimeAnimatorController.animationClips
+                            .FirstOrDefault(c => c.name == "MeleeAttack"); // "MeleeAttack" í´ë¦½ ì°¾ê¸°
         if (clip != null)
         {
-            attackAnimDuration = clip.length;
+            attackAnimDuration = clip.length; 
         }
-        player.SetLastMeleeAttackTime(); // PlayerController¿¡ ÄğÅ¸ÀÓ ±â·Ï ÇÔ¼ö È£Ãâ
+        else
+        {
+            attackAnimDuration = 0.5f; 
+        }
+        player.PerformMeleeAttack();
     }
 
     public override void Execute()
     {
-        stateTimer += Time.deltaTime;
+        stateTimer += Time.deltaTime; 
 
-        // Æ¯Á¤ Å¸ÀÌ¹Ö¿¡ °ø°İ ÆÇÁ¤ ½ÇÇà
-        if (!damageDealt && stateTimer >= damageStartTime && stateTimer <= damageEndTime)
+        // ë°ë¯¸ì§€ íŒì • ì‹œê°„
+        if (!damageDealt && stateTimer >= damageStartTime && stateTimer <= damageEndTime) 
         {
-            // PlayerController¿¡ ½ÇÁ¦ °ø°İ ÆÇÁ¤ ·ÎÁ÷À» À§ÀÓ °¡´É
-            // player.PerformMeleeDamageCheck(player.Status.ATK.Value, ATTACK_RANGE, attackPoint, hittableLayers);
-            Debug.Log($"±ÙÁ¢ °ø°İ µ¥¹ÌÁö : {player.Status.ATK.Value}"); // ½ÇÁ¦ µ¥¹ÌÁö ·ÎÁ÷Àº ÃßÈÄ ±¸Çö
-            damageDealt = true; // ÇÑ ¹øÀÇ °ø°İ »óÅÂ¿¡¼­ ¿©·¯ ¹ø µ¥¹ÌÁö°¡ µé¾î°¡Áö ¾Êµµ·Ï (¾Ö´Ï¸ŞÀÌ¼Ç¿¡ µû¶ó Á¶Àı)
+            Collider2D[] hits = Physics2D.OverlapCircleAll(attackPoint.position, attackRange, hittableLayers); // ê³µê²© íŒì •
+            foreach (var hit in hits)
+            {
+                IDamageable damageableTarget = hit.GetComponent<IDamageable>();
+                if (damageableTarget != null)
+                {
+                    damageableTarget.TakeDamage(player.Status.ATK.Value); // í”Œë ˆì´ì–´ ê³µê²©ë ¥ìœ¼ë¡œ ë°ë¯¸ì§€
+                    Debug.Log($"Player dealt {player.Status.ATK.Value} melee damage to {hit.gameObject.name}");
+                    damageDealt = true; // ì´ë²ˆ ê³µê²© ë™ì•ˆ í•œ ë²ˆë§Œ ë°ë¯¸ì§€ (ê´‘ì—­ê¸°ê°€ ì•„ë‹ˆë¼ë©´)
+                    // break; // ë‹¨ì¼ íƒ€ê²Ÿë§Œ ì›í•˜ë©´ ì£¼ì„ í•´ì œ
+                }
+            }
+            // ë°ë¯¸ì§€ íŒì •ì€ í•œ ë²ˆë§Œ ì‹¤í–‰ë˜ë„ë¡ damageDealt í”Œë˜ê·¸ë¥¼ ì—¬ê¸°ì„œ trueë¡œ ì„¤ì • ê°€ëŠ¥
+            // damageDealt = true; // ë£¨í”„ í›„ ì„¤ì •í•˜ë©´ ì—¬ëŸ¬ ëŒ€ìƒ íƒ€ê²© ê°€ëŠ¥
         }
 
-        // ¾Ö´Ï¸ŞÀÌ¼Ç Àç»ı ¿Ï·á (¶Ç´Â »óÅÂ Áö¼Ó ½Ã°£ ¿Ï·á) ÈÄ Idle »óÅÂ·Î ÀüÈ¯
-        if (stateTimer >= attackAnimDuration)
+        if (stateTimer >= attackAnimDuration) // ì• ë‹ˆë©”ì´ì…˜(ìƒíƒœ) ì¢…ë£Œ
         {
-            player.ChangeState(EPlayerState.Idle);
+            player.ChangeState(EPlayerState.Idle); 
+        }
+    }
+    public override void Exit() { }
+}
+
+
+public class HitState : BaseState
+{
+    public HitState(PlayerController player) : base(player) { } 
+
+    public override void Enter()
+    {
+        player.Animator.Play("Hit"); 
+        player.Movement.StopImmediately(); // í˜„ì¬ ì›€ì§ì„ì„ ì¦‰ì‹œ ë©ˆì¶¤
+        player.movementDisabled = true;   // í”Œë ˆì´ì–´ ì…ë ¥ì„ ë¹„í™œì„±í™”
+    }
+
+    public override void Execute()
+    {
+        // "Hit" ì• ë‹ˆë©”ì´ì…˜ì´ ëë‚˜ë©´ Idle ìƒíƒœë¡œ ëŒì•„ê°
+        AnimatorStateInfo stateInfo = player.Animator.GetCurrentAnimatorStateInfo(0); 
+        if (stateInfo.IsName("Hit") && stateInfo.normalizedTime >= 1.0f) 
+        {
+            player.ChangeState(EPlayerState.Idle); 
         }
     }
 
     public override void Exit()
     {
-        
+        player.movementDisabled = false; // í”Œë ˆì´ì–´ ì…ë ¥ì„ ë‹¤ì‹œ í™œì„±í™”
+    }
+}
+
+
+
+public class PlayerDieState : BaseState
+{
+    public PlayerDieState(PlayerController player) : base(player) { }
+
+    public override void Enter()
+    {
+        player.Animator.Play("Die"); 
+        player.Movement.StopImmediately(); // ëª¨ë“  ì›€ì§ì„ ì •ì§€
+        player.movementDisabled = true;   // ì´ë™ ë° ëª¨ë“  ê´€ë ¨ ì…ë ¥ ì²˜ë¦¬(ë°©í–¥ ì „í™˜ í¬í•¨) ë¹„í™œì„±í™”
+        Debug.Log("Player entered DieState. All inputs disabled."); //
+    }
+
+    public override void Execute()
+    {
+
+    }
+
+    public override void Exit()
+    {
+
     }
 }

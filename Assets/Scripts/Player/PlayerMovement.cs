@@ -5,26 +5,36 @@ using UnityEngine;
 public class PlayerMovement : MonoBehaviour
 {
     private Rigidbody2D rb;
-    [SerializeField] private float _rollspeed = 2f; // ±¸¸£±â ¼Óµµ
-    [SerializeField] private float moveSpeed = 5f; // ÇÃ·¹ÀÌ¾î ¼Óµµ
-    [SerializeField] private float jumpForce = 5f; // Á¡ÇÁ Èû
-    [SerializeField] private float fallMultiplier = 2.5f; // ¶³¾îÁú ¶§ ´õ »¡¸® ¶³¾îÁöµµ·Ï
-    [SerializeField] private float lowJumpMultiplier = 2f; // ³·Àº Á¡ÇÁ Á¶Á¤
-    [SerializeField] private Transform groundCheck; // Áö¸é Ã¼Å© Æ÷ÀÎÆ®
-    [SerializeField] private float groundRadius = 0.2f; // Áö¸é Ã¼Å© ¹İ°æ
-    [SerializeField] private LayerMask groundLayer; // Áö¸é ·¹ÀÌ¾î
+    [SerializeField] private float _rollspeed = 2f; // êµ¬ë¥´ê¸° ì†ë„
+    [SerializeField] private float moveSpeed = 5f; // í”Œë ˆì´ì–´ ì†ë„
+    [SerializeField] private float jumpForce = 5f; // ì í”„ í˜
+    [SerializeField] private float fallMultiplier = 2.5f; // ë–¨ì–´ì§ˆ ë•Œ ë” ë¹¨ë¦¬ ë–¨ì–´ì§€ë„ë¡
+    [SerializeField] private float lowJumpMultiplier = 2f; // ë‚®ì€ ì í”„ ì¡°ì •
+    [SerializeField] private Transform groundCheck; // ì§€ë©´ ì²´í¬ í¬ì¸íŠ¸
+    [SerializeField] private float groundRadius = 0.2f; // ì§€ë©´ ì²´í¬ ë°˜ê²½
+    [SerializeField] private LayerMask groundLayer; // ì§€ë©´ ë ˆì´ì–´
 
-    private bool isFacingRight = true; // ±âº»ÀûÀ¸·Î ¿À¸¥ÂÊÀ» ÇâÇÔ
-    public bool IsFacingRight => isFacingRight; // ±âº» ¹Ù¶óº¸´Â ¹æÇâÀÌ ¿À¸¥ÂÊ
-    public float VerticalVelocity => rb.velocity.y;
+    private bool isFacingRight = true; // ê¸°ë³¸ì ìœ¼ë¡œ ì˜¤ë¥¸ìª½ì„ í–¥í•¨
+    public bool IsFacingRight => isFacingRight; // ê¸°ë³¸ ë°”ë¼ë³´ëŠ” ë°©í–¥ì´ ì˜¤ë¥¸ìª½
+    public float VerticalVelocity => rb != null ? rb.velocity.y : 0f; // rb null ì²´í¬ ì¶”ê°€
 
     void Awake()
     {
         rb = GetComponent<Rigidbody2D>();
+        if (rb == null)
+        {
+            Debug.LogError("PlayerMovement: Rigidbody2D component not found!");
+        }
     }
 
     private void Update()
     {
+        PlayerController pc = GetComponent<PlayerController>();
+        if (pc != null && pc.movementDisabled) // ì´ ì¡°ê±´ë¬¸ì´ Die ìƒíƒœì—ì„œ trueê°€ ë¨
+        {
+            return; // ì´ë™ ë° ë°©í–¥ ì „í™˜ ë¡œì§ ì‹¤í–‰ ì•ˆ í•¨
+        }
+
         float moveInput = Input.GetAxisRaw("Horizontal");
         if (moveInput != 0)
         {
@@ -35,11 +45,20 @@ public class PlayerMovement : MonoBehaviour
 
     public void Move(float direction)
     {
+        if (rb == null) return;
+
+        PlayerController pc = GetComponent<PlayerController>();
+        if (pc != null && pc.movementDisabled) // ì´ ì¡°ê±´ë¬¸ì´ Die ìƒíƒœì—ì„œ trueê°€ ë¨
+        {
+            return; // ì´ë™ ë¡œì§ ì‹¤í–‰ ì•ˆ í•¨
+        }
+
         rb.velocity = new Vector2(direction * moveSpeed, rb.velocity.y);
     }
 
     public void Jump()
     {
+        if (rb == null) return;
         if (IsGrounded())
         {
             rb.velocity = new Vector2(rb.velocity.x, jumpForce);
@@ -48,43 +67,64 @@ public class PlayerMovement : MonoBehaviour
 
     public void Roll()
     {
+        if (rb == null) return;
         if (IsGrounded())
         {
             float rollSpeed = moveSpeed * _rollspeed;
+            // isFacingRightëŠ” Updateì—ì„œ ê°±ì‹ ë˜ë¯€ë¡œ ê·¸ ê°’ì„ ì‚¬ìš©
             rb.velocity = new Vector2(isFacingRight ? rollSpeed : -rollSpeed, rb.velocity.y);
         }
     }
 
     public bool IsGrounded()
     {
-        if (groundCheck == null)
+        if (groundCheck == null) return false;
+
+        // OverlapCircleë¡œ ì§€ë©´ ì²´í¬
+        Collider2D hit = Physics2D.OverlapCircle(groundCheck.position, groundRadius, groundLayer);
+        if (hit == null)
         {
+            // ì§€ë©´ì´ ì•„ë‹ ë•ŒëŠ” false ë°˜í™˜
             return false;
         }
-        bool grounded = Physics2D.OverlapCircle(groundCheck.position, groundRadius, groundLayer);
-        return grounded;
+
+        // â€œì§€ë©´ê³¼ ì ‘ì´‰â€ì´ ê°ì§€ë˜ì—ˆë‹¤ë©´, 
+        // Yì†ë„ê°€ ì•„ì£¼ ì‘ì€ ìŒìˆ˜(ë˜ëŠ” 0)ì´ ì•„ë‹ˆë©´ ê°•ì œë¡œ 0ìœ¼ë¡œ ë§Œë“¤ì–´ì„œ í‹ˆìƒˆë¡œ ëš«ê³  ë‚´ë ¤ê°€ëŠ” ê±¸ ë°©ì§€
+        if (rb.velocity.y < 0f)
+        {
+            rb.velocity = new Vector2(rb.velocity.x, 0f);
+        }
+
+        return true;
+    }
+
+    // ì¶”ê°€ëœ ë©”ì„œë“œ: ì›€ì§ì„ì„ ì¦‰ì‹œ ë©ˆì¶¤
+    public void StopImmediately()
+    {
+        if (rb != null)
+        {
+            rb.velocity = Vector2.zero;
+        }
     }
 
     void FixedUpdate()
     {
-        // ÀÚ¿¬½º·¯¿î Á¡ÇÁ¿Í ³«ÇÏ
-        if (rb.velocity.y < 0)
+        if (rb == null) return;
+
+        // ìì—°ìŠ¤ëŸ¬ìš´ ì í”„ì™€ ë‚™í•˜ë¥¼ ìœ„í•œ ì¤‘ë ¥ ì¡°ì ˆ
+        if (rb.velocity.y < 0) // ë–¨ì–´ì§ˆ ë•Œ
         {
             rb.velocity += Vector2.up * Physics2D.gravity.y * (fallMultiplier - 1) * Time.fixedDeltaTime;
         }
-        else if (rb.velocity.y > 0 && !Input.GetButton("Jump"))
+        else if (rb.velocity.y > 0 && !Input.GetButton("Jump")) // ì í”„ í‚¤ë¥¼ ì§§ê²Œ ëˆŒë €ì„ ë•Œ (ë‚®ì€ ì í”„)
         {
             rb.velocity += Vector2.up * Physics2D.gravity.y * (lowJumpMultiplier - 1) * Time.fixedDeltaTime;
         }
     }
 
-    void OnDrawGizmos()
+    void OnDrawGizmosSelected()
     {
-        // ÂøÁö ÁöÁ¡ ±âÁî¸ğ 
-        if (groundCheck != null && groundRadius > 0)
-        {
-            Gizmos.color = Color.green; 
-            Gizmos.DrawWireSphere(groundCheck.position, groundRadius); // groundCheck ÁÖº¯ ¿ø ±×¸®±â
-        }
+        Gizmos.color = Color.red;
+        Gizmos.DrawWireSphere(transform.position, groundRadius); // ì›ê±°ë¦¬ ê³µê²© ê±°ë¦¬ ì‹œê°í™”
     }
 }

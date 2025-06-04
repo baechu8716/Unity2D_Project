@@ -10,5 +10,7 @@ public enum EPlayerState
     Fall,
     Roll,
     Attack,
-    MeleeAttack
+    MeleeAttack,
+    Hit,
+    Die
 }

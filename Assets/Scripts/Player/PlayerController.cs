@@ -2,210 +2,277 @@ using Cinemachine;
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using DesignPattern;
 
-public class PlayerController : MonoBehaviour
+public class PlayerController : MonoBehaviour, IDamageable
 {
+    [Header("FSM & Core Components")]
     private StateMachine stateMachine;
-    private PlayerMovement movement;
-    private PlayerStatus status;
-    private Animator animator;
-    private bool hasPlayedJumpAnimation = false;
+    public PlayerMovement Movement { get; private set; }
+    public PlayerStatus Status { get; private set; }     
+    public Animator Animator { get; private set; }      
 
-    private Collider2D playerCollider;
-    private GameObject aimUIInstance;
-    private float lastRollTime; // ¸¶Áö¸· ±¸¸£±â ½Ã°£
-
+    [Header("Combat Stats & Settings")]
+    [SerializeField] private int initialAttackPower = 10;
+    [SerializeField] private float initialHealth = 100f;
+    // Melee Attack
+    [SerializeField] public float meleeAttackRange = 1.5f; 
+    [SerializeField] public Transform meleeAttackPoint;   
+    [SerializeField] public LayerMask enemyLayers;         
+    [SerializeField] private float meleeAttackCooldown = 1f;
     private float lastMeleeAttackTime;
-    [SerializeField] private float meleeAttackCooldown = 1f; // MeleeAttackStateÀÇ ATTACK_COOLDOWN°ú µ¿±âÈ­ÇÏ°Å³ª ÇÑ °÷¿¡¼­ °ü¸®
 
-    [SerializeField] private GameObject aimUIPrefab;
-    [SerializeField] private CinemachineVirtualCamera virtualCamera;
-    [SerializeField] private float zoomInSize = 3f; // ÁÜÀÎ ½Ã Orthographic Size
-    [SerializeField] private float zoomOutSize = 6f; // ÁÜ¾Æ¿ô ½Ã Orthographic Size
-    [SerializeField] private float rollCooldown = 2f; // ±¸¸£±â ÄğÅ¸ÀÓ (2ÃÊ)
-    [SerializeField] private GameObject arrowPrefab; // È­»ì ÇÁ¸®ÆÕ
-    [SerializeField] private Transform firePoint; // ¹ß»ç À§Ä¡ (ÇÃ·¹ÀÌ¾î À§Ä¡ ¶Ç´Â ¹«±â À§Ä¡)
-    [SerializeField] private float maxAngle = 45f; // ¹ß»ç °¡´ÉÇÑ ÃÖ´ë °¢µµ (¿¹: 45µµ)
+    [Header("Ranged Attack (Bow)")] 
+    [SerializeField] private GameObject arrowPrefab;     // í™”ì‚´ í”„ë¦¬íŒ¹
+    [SerializeField] private Transform firePoint;         // ë°œì‚¬ ìœ„ì¹˜
+    [SerializeField] private float maxFireAngle = 45f;    // ë°œì‚¬ ê°€ëŠ¥ ìµœëŒ€ ê°ë„
+    [SerializeField] private float arrowDamageMultiplier = 1.0f; // í™”ì‚´ ë°ë¯¸ì§€ ë°°ìœ¨ (ì¸ìŠ¤í™í„°ì—ì„œ ì„¤ì • ê°€ëŠ¥)
 
-    [SerializeField] private LineRenderer angleIndicatorRenderer; // Inspector¿¡¼­ ÇÒ´çÇÒ LineRenderer
-    [SerializeField] private float angleIndicatorLength = 1.5f; // °¢µµ Áö½Ã¼± ±æÀÌ
-    [SerializeField] private Color validAngleColor = Color.green; // ¹ß»ç °¡´É °¢µµÀÏ ¶§ ¼± »ö»ó
-    [SerializeField] private Color invalidAngleColor = Color.red; // ¹ß»ç ºÒ°¡´É °¢µµÀÏ ¶§ ¼± »ö»ó (Á¶ÁØ UI¿¡ µû¶ó »ö º¯°æ ½Ã »ç¿ë)
+    [Header("Roll Settings")]
+    [SerializeField] private float rollCooldown = 2f;
+    private float lastRollTime;
+
+    [Header("Aiming & Camera")]
+    [SerializeField] private GameObject aimUIPrefab;     // ì¡°ì¤€ UI í”„ë¦¬íŒ¹
+    [SerializeField] private CinemachineVirtualCamera virtualCamera; // ì‹œë„¤ë¨¸ì‹  ê°€ìƒ ì¹´ë©”ë¼
+    [SerializeField] private float zoomInSize = 3f;     // ì¤Œ ì¸ í¬ê¸°
+    [SerializeField] private float zoomOutSize = 6f;    // ì¤Œ ì•„ì›ƒ í¬ê¸°
+    [SerializeField] private LineRenderer angleIndicatorRenderer; // ê°ë„ ì§€ì‹œì„  LineRenderer
+    [SerializeField] private float angleIndicatorLength = 1.5f; // ê°ë„ ì§€ì‹œì„  ê¸¸ì´
+    [SerializeField] private Color validAngleColor = Color.green; // ìœ íš¨ ê°ë„ ìƒ‰ìƒ
+    [SerializeField] private Color invalidAngleColor = Color.red; // ë¬´íš¨ ê°ë„ ìƒ‰ìƒ
+    private GameObject aimUIInstance;
+
+
+    public bool HasPlayedJumpAnimation { get; set; } // ì í”„ ì• ë‹ˆë©”ì´ì…˜ ì¬ìƒ ì—¬ë¶€
+
+    public float ATTACK_RANGE => meleeAttackRange; // ATTACK_RANGE í”„ë¡œí¼í‹°
+    public Transform MeleeAttackPoint => meleeAttackPoint; // MeleeAttackPoint í”„ë¡œí¼í‹°
+    public LayerMask EnemyLayers => enemyLayers; // EnemyLayers í”„ë¡œí¼í‹°
 
 
     void Awake()
     {
-        playerCollider = GetComponent<Collider2D>();
-        movement = GetComponent<PlayerMovement>();
-        animator = GetComponentInChildren<Animator>();
-        status = new PlayerStatus(100f, 10);
+        Movement = GetComponent<PlayerMovement>();
+        Animator = GetComponentInChildren<Animator>();
+        Status = new PlayerStatus(initialHealth, initialAttackPower); // Status ì´ˆê¸°í™”
 
-        stateMachine = new StateMachine();
-        stateMachine.AddState(EPlayerState.Idle, new IdleState(this));
-        stateMachine.AddState(EPlayerState.Move, new MoveState(this));
-        stateMachine.AddState(EPlayerState.Jump, new JumpState(this));
-        stateMachine.AddState(EPlayerState.Fall, new FallState(this));
-        stateMachine.AddState(EPlayerState.Roll, new RollState(this));
-        stateMachine.AddState(EPlayerState.Attack, new AttackState(this));
-        stateMachine.AddState(EPlayerState.MeleeAttack, new MeleeAttackState(this));
+        stateMachine = new StateMachine(); 
+        stateMachine.AddState(EPlayerState.Idle, new IdleState(this)); 
+        stateMachine.AddState(EPlayerState.Move, new MoveState(this)); 
+        stateMachine.AddState(EPlayerState.Jump, new JumpState(this)); 
+        stateMachine.AddState(EPlayerState.Fall, new FallState(this)); 
+        stateMachine.AddState(EPlayerState.Roll, new RollState(this)); 
+        stateMachine.AddState(EPlayerState.Attack, new AttackState(this));     
+        stateMachine.AddState(EPlayerState.MeleeAttack, new MeleeAttackState(this)); 
+        stateMachine.AddState(EPlayerState.Hit, new HitState(this)); 
+        stateMachine.AddState(EPlayerState.Die, new PlayerDieState(this)); 
 
-        stateMachine.ChangeState(EPlayerState.Idle);
+        stateMachine.ChangeState(EPlayerState.Idle); // ì´ˆê¸° ìƒíƒœë¥¼ Idleë¡œ ì„¤ì •
 
-        aimUIInstance = Instantiate(aimUIPrefab, Vector3.zero, Quaternion.identity);
+        if (aimUIPrefab != null)
+            aimUIInstance = Instantiate(aimUIPrefab, Vector3.zero, Quaternion.identity); // ì¡°ì¤€ UI ìƒì„±
+        else
+            Debug.LogError("AimUI Prefab is not assigned!");
 
         if (virtualCamera != null)
-            virtualCamera.m_Lens.OrthographicSize = zoomOutSize; // ÃÊ±â Å©±â ¼³Á¤
+            virtualCamera.m_Lens.OrthographicSize = zoomOutSize; // ì¹´ë©”ë¼ ì´ˆê¸° ì¤Œ ì•„ì›ƒ
 
-        lastRollTime = -rollCooldown; // ÃÊ±â°ª ¼³Á¤
+        lastRollTime = -rollCooldown; // êµ¬ë¥´ê¸° ì¿¨íƒ€ì„ ì´ˆê¸°í™”
+        lastMeleeAttackTime = -meleeAttackCooldown; // ê·¼ì ‘ ê³µê²© ì¿¨íƒ€ì„ ì´ˆê¸°í™”
+
+        Status.HP.OnValueChanged += HandleHealthChanged; // HP ë³€ê²½ ì‹œ ì´ë²¤íŠ¸ í•¸ë“¤ëŸ¬ ë“±ë¡
+    }
+
+    void OnDestroy()
+    {
+        if (Status != null && Status.HP != null)
+            Status.HP.OnValueChanged -= HandleHealthChanged; // ì´ë²¤íŠ¸ í•¸ë“¤ëŸ¬ í•´ì œ
+    }
+
+    private void HandleHealthChanged(float newHP)
+    {
+        Debug.Log($"Player HP Changed: {newHP}");
+        if (newHP <= 0)
+        {
+            Die();
+        }
+    }
+
+    void Update()
+    {
+        stateMachine.Update(); // FSM ì—…ë°ì´íŠ¸
+        if (aimUIInstance != null) HandleAimUI(); // ì¡°ì¤€ UI ì²˜ë¦¬
+        HandleZoom(); // ì¹´ë©”ë¼ ì¤Œ ì²˜ë¦¬
     }
 
     void LateUpdate()
     {
-        stateMachine.Update();
-        HandleAimUI();
-        HandleZoom();
-        HandleAngleIndicator();
+        // LineRenderer ì—…ë°ì´íŠ¸ëŠ” ëª¨ë“  ìœ„ì¹˜ ê³„ì‚°ì´ ëë‚œ LateUpdateê°€ ì í•©
+        if (angleIndicatorRenderer != null && firePoint != null && aimUIInstance != null) HandleAngleIndicator(); // ê°ë„ ì§€ì‹œì„  ì²˜ë¦¬
     }
 
     public void ChangeState(EPlayerState newState)
     {
-        stateMachine.ChangeState(newState);
+        stateMachine.ChangeState(newState); // ìƒíƒœ ë³€ê²½
     }
 
     public bool CanRoll()
     {
-        return Time.time >= lastRollTime + rollCooldown;
+        return Time.time >= lastRollTime + rollCooldown; // êµ¬ë¥´ê¸° ê°€ëŠ¥ ì—¬ë¶€ í™•ì¸
     }
 
-    public void OnRoll()
+    public void PerformRoll() // PlayerControllerFSMì˜ RollStateì—ì„œ í˜¸ì¶œ (ê¸°ì¡´ OnRollì—ì„œ ì´ë¦„ ë³€ê²½ ì¼ê´€ì„±)
     {
-        lastRollTime = Time.time;
+        lastRollTime = Time.time; // ë§ˆì§€ë§‰ êµ¬ë¥´ê¸° ì‹œê°„ ê¸°ë¡
     }
 
     public void SetInvincibility(bool invincible)
     {
-        gameObject.layer = LayerMask.NameToLayer(invincible ? "PlayerInvincible" : "Player");
-        // ÇÁ·ÎÁ§Æ® ¼¼ÆÃ¿¡¼­ Enemy°ø°İ Ãæµ¹ ÇØÁ¦ ¿¹Á¤
+        // êµ¬ë¥´ê¸° ì¤‘ ë¬´ì  ë ˆì´ì–´ ë³€ê²½
+        gameObject.layer = LayerMask.NameToLayer(invincible ? "PlayerInvincible" : "Player"); // ë¬´ì  ìƒíƒœì— ë”°ë¥¸ ë ˆì´ì–´ ë³€ê²½
     }
-
-    public PlayerMovement Movement => movement;
-    public PlayerStatus Status => status;
-    public Animator Animator => animator;
-    public bool HasPlayedJumpAnimation { get => hasPlayedJumpAnimation; set => hasPlayedJumpAnimation = value; }
 
     private void HandleAimUI()
     {
-        // ¸¶¿ì½º À§Ä¡¸¦ ¿ùµå ÁÂÇ¥·Î º¯È¯
-        Vector3 mouseWorldPosition = Camera.main.ScreenToWorldPoint(Input.mousePosition);
-        mouseWorldPosition.z = 0f; // 2DÀÌ¹Ç·Î zÃàÀº 0À¸·Î ¼³Á¤
-        aimUIInstance.transform.position = mouseWorldPosition; // AimUI¸¦ ¸¶¿ì½º À§Ä¡·Î ÀÌµ¿
+        Vector3 mouseWorldPosition = Camera.main.ScreenToWorldPoint(Input.mousePosition); // ë§ˆìš°ìŠ¤ ìœ„ì¹˜ë¥¼ ì›”ë“œ ì¢Œí‘œë¡œ ë³€í™˜
+        mouseWorldPosition.z = 0f; // 2D ê²Œì„ì´ë¯€ë¡œ z=0
+        aimUIInstance.transform.position = mouseWorldPosition; // ì¡°ì¤€ UI ìœ„ì¹˜ ì—…ë°ì´íŠ¸
     }
 
     private void HandleZoom()
     {
-        if (Input.GetMouseButtonDown(1))
+        if (Input.GetMouseButtonDown(1) && virtualCamera != null) // ìš°í´ë¦­ ì‹œ ì¤Œ ì¸
         {
-            Debug.Log("Zoom In triggered");
-            if (virtualCamera != null)
-                virtualCamera.m_Lens.OrthographicSize = zoomInSize;
-            else
-                Debug.LogError("Virtual Camera is not assigned!");
+            virtualCamera.m_Lens.OrthographicSize = zoomInSize;
         }
-        else if (Input.GetMouseButtonUp(1))
+        else if (Input.GetMouseButtonUp(1) && virtualCamera != null) // ìš°í´ë¦­ ë—„ ì‹œ ì¤Œ ì•„ì›ƒ
         {
-            Debug.Log("Zoom Out triggered");
-            if (virtualCamera != null)
-                virtualCamera.m_Lens.OrthographicSize = zoomOutSize;
-            else
-                Debug.LogError("Virtual Camera is not assigned!");
+            virtualCamera.m_Lens.OrthographicSize = zoomOutSize;
         }
     }
 
     public void FireArrow()
     {
-        Vector2 aimPosition = aimUIInstance.transform.position;
-        Vector2 direction = (aimPosition - (Vector2)firePoint.position).normalized;
-
-        float angle = Mathf.Atan2(direction.y, direction.x) * Mathf.Rad2Deg;
-        float referenceAngle = movement.IsFacingRight ? 0f : 180f;
-        float relativeAngle = Mathf.Abs(Mathf.DeltaAngle(angle, referenceAngle));
-
-        if (relativeAngle <= maxAngle)
+        if (arrowPrefab == null || firePoint == null || aimUIInstance == null) 
         {
-            Vector2 spawnPosition = (Vector2)firePoint.position + direction * 0.5f;
-            GameObject arrow = Instantiate(arrowPrefab, spawnPosition, Quaternion.identity);
-            arrow.layer = LayerMask.NameToLayer("Projectile");
-            arrow.GetComponent<Arrow>().SetDirection(direction);
+            Debug.LogError("í™”ì‚´ í”„ë¦¬íŒ¹ ì°¸ì¡° í•„ìš”"); 
+            return;
+        }
+
+        Vector2 aimPosition = aimUIInstance.transform.position; 
+        Vector2 direction = (aimPosition - (Vector2)firePoint.position).normalized; 
+
+        float angle = Mathf.Atan2(direction.y, direction.x) * Mathf.Rad2Deg; 
+        float referenceAngle = Movement.IsFacingRight ? 0f : 180f; 
+        float relativeAngle = Mathf.Abs(Mathf.DeltaAngle(angle, referenceAngle)); 
+
+        if (relativeAngle <= maxFireAngle) 
+        {
+            Vector2 spawnPosition = firePoint.position; 
+            GameObject arrowInstance = Instantiate(arrowPrefab, spawnPosition, Quaternion.identity); 
+
+            Projectile arrowScript = arrowInstance.GetComponent<Projectile>(); 
+            if (arrowScript != null) 
+            {
+                float finalArrowDamage = Status.ATK.Value * arrowDamageMultiplier; // í”Œë ˆì´ì–´ ê¸°ë³¸ ê³µê²©ë ¥ * ë°°ìœ¨
+                arrowScript.Initialize(direction, finalArrowDamage, gameObject); // Projectile ì´ˆê¸°í™” (ë°ë¯¸ì§€, ë°œì‚¬ì ì •ë³´ ì „ë‹¬)
+                Debug.Log($"í”Œë ˆì´ì–´ í™”ì‚´ ë°œì‚¬! ë°©í–¥: {direction}, ê¸°ë³¸ ë°ë¯¸ì§€: {Status.ATK.Value}, ë°°ìœ¨: {arrowDamageMultiplier}, ìµœì¢… ë°ë¯¸ì§€: {finalArrowDamage}");
+            }
         }
     }
-
 
     private void HandleAngleIndicator()
     {
-        if (angleIndicatorRenderer == null || firePoint == null || aimUIInstance == null)
+        if (!(stateMachine.CurrentState is AttackState attackState && attackState.IsWaitingForFire())) // AttackStateì˜ IsWaitingForFire ì‚¬ìš©
         {
-            if (angleIndicatorRenderer != null) angleIndicatorRenderer.enabled = false;
+            if (angleIndicatorRenderer.enabled) angleIndicatorRenderer.enabled = false;
             return;
         }
+        angleIndicatorRenderer.enabled = true; // ì¡°ê±´ ë§Œì¡± ì‹œ í™œì„±í™”
 
-        // AttackStateÀÏ ¶§, ±×¸®°í waitingForFire (Á¶ÁØ Áß ¸ØÃã) »óÅÂÀÏ ¶§¸¸ Ç¥½Ã
-        bool isAiming = stateMachine.currentState is AttackState &&
-                        (stateMachine.currentState as AttackState).IsWaitingForFire(); // AttackState¿¡ IsWaitingForFire() ¸Ş¼­µå ÇÊ¿ä
+        Vector2 firePointPos = firePoint.position; // ë°œì‚¬ ì§€ì 
+        float characterDirectionAngle = Movement.IsFacingRight ? 0f : 180f; // ìºë¦­í„° ë°©í–¥
 
-        if (!isAiming && !(Input.GetMouseButton(1) && stateMachine.currentState is AttackState)) // AttackState ÁøÀÔ Á÷ÈÄ ¾ÆÁ÷ waitingForFire°¡ ¾Æ´Ò ¶§µµ ¿ìÅ¬¸¯ ´©¸£°í ÀÖÀ¸¸é Ç¥½Ã
-        {
-            angleIndicatorRenderer.enabled = false;
-            return;
-        }
-        angleIndicatorRenderer.enabled = true;
+        float angleMinRad = (characterDirectionAngle - maxFireAngle) * Mathf.Deg2Rad; // ìµœì†Œ ê°ë„
+        float angleMaxRad = (characterDirectionAngle + maxFireAngle) * Mathf.Deg2Rad; // ìµœëŒ€ ê°ë„
 
+        Vector2 dirMin = new Vector2(Mathf.Cos(angleMinRad), Mathf.Sin(angleMinRad)); // ìµœì†Œ ê°ë„ ë°©í–¥ ë²¡í„°
+        Vector2 dirMax = new Vector2(Mathf.Cos(angleMaxRad), Mathf.Sin(angleMaxRad)); // ìµœëŒ€ ê°ë„ ë°©í–¥ ë²¡í„°
 
-        Vector2 firePointPos = firePoint.position;
-        float characterDirectionAngle = movement.IsFacingRight ? 0f : 180f; // Ä³¸¯ÅÍ°¡ ¹Ù¶óº¸´Â ±âÁØ °¢µµ (µµ)
+        angleIndicatorRenderer.positionCount = 3; // LineRenderer ì •ì  ê°œìˆ˜
+        angleIndicatorRenderer.SetPosition(0, firePointPos + dirMin * angleIndicatorLength); // ì²« ë²ˆì§¸ ì •ì 
+        angleIndicatorRenderer.SetPosition(1, firePointPos); // ë‘ ë²ˆì§¸ ì •ì  (ì¤‘ì‹¬)
+        angleIndicatorRenderer.SetPosition(2, firePointPos + dirMax * angleIndicatorLength); // ì„¸ ë²ˆì§¸ ì •ì 
 
-        // ºÎÃ¤²ÃÀÇ ¾çÂÊ ³¡ °¢µµ °è»ê
-        float angleMin = characterDirectionAngle - maxAngle;
-        float angleMax = characterDirectionAngle + maxAngle;
+        Vector2 aimPosition = aimUIInstance.transform.position; // ì¡°ì¤€ ìœ„ì¹˜
+        Vector2 currentShotDirection = (aimPosition - firePointPos).normalized; // í˜„ì¬ ì¡°ì¤€ ë°©í–¥
+        float currentShotAngleDegrees = Mathf.Atan2(currentShotDirection.y, currentShotDirection.x) * Mathf.Rad2Deg; // í˜„ì¬ ì¡°ì¤€ ê°ë„
+        float relativeAngle = Mathf.Abs(Mathf.DeltaAngle(currentShotAngleDegrees, characterDirectionAngle)); // ìƒëŒ€ ê°ë„
 
-        // °¢µµ¸¦ ¶óµğ¾ÈÀ¸·Î º¯È¯
-        float angleMinRad = angleMin * Mathf.Deg2Rad;
-        float angleMaxRad = angleMax * Mathf.Deg2Rad;
-
-        // ¹æÇâ º¤ÅÍ °è»ê
-        Vector2 dirMin = new Vector2(Mathf.Cos(angleMinRad), Mathf.Sin(angleMinRad));
-        Vector2 dirMax = new Vector2(Mathf.Cos(angleMaxRad), Mathf.Sin(angleMaxRad));
-
-        // LineRenderer Á¡ ¼³Á¤ (³¡Á¡1, ¹ß»çÁ¡, ³¡Á¡2)
-        angleIndicatorRenderer.positionCount = 3;
-        angleIndicatorRenderer.SetPosition(0, firePointPos + dirMin * angleIndicatorLength);
-        angleIndicatorRenderer.SetPosition(1, firePointPos);
-        angleIndicatorRenderer.SetPosition(2, firePointPos + dirMax * angleIndicatorLength);
-
-        // ÇöÀç ¸¶¿ì½º Á¶ÁØ ¹æÇâÀÌ À¯È¿ÇÑÁö È®ÀÎÇÏ°í ¼± »ö»ó º¯°æ
-        Vector2 aimPosition = aimUIInstance.transform.position;
-        Vector2 currentShotDirection = (aimPosition - firePointPos).normalized;
-        float currentShotAngleDegrees = Mathf.Atan2(currentShotDirection.y, currentShotDirection.x) * Mathf.Rad2Deg;
-
-        float relativeAngle = Mathf.Abs(Mathf.DeltaAngle(currentShotAngleDegrees, characterDirectionAngle));
-
-        if (relativeAngle <= maxAngle)
-        {
-            angleIndicatorRenderer.startColor = validAngleColor;
-            angleIndicatorRenderer.endColor = validAngleColor;
-        }
-        else
-        {
-            angleIndicatorRenderer.startColor = invalidAngleColor;
-            angleIndicatorRenderer.endColor = invalidAngleColor;
-        }
+        angleIndicatorRenderer.startColor = (relativeAngle <= maxFireAngle) ? validAngleColor : invalidAngleColor; // ê°ë„ì— ë”°ë¥¸ ìƒ‰ìƒ ë³€ê²½
+        angleIndicatorRenderer.endColor = (relativeAngle <= maxFireAngle) ? validAngleColor : invalidAngleColor; // ê°ë„ì— ë”°ë¥¸ ìƒ‰ìƒ ë³€ê²½
     }
+
     public bool CanMeleeAttack()
     {
-        return Time.time >= lastMeleeAttackTime + meleeAttackCooldown;
+        return Time.time >= lastMeleeAttackTime + meleeAttackCooldown; // ê·¼ì ‘ ê³µê²© ê°€ëŠ¥ ì—¬ë¶€
     }
 
     public void SetLastMeleeAttackTime()
     {
         lastMeleeAttackTime = Time.time;
     }
+
+    public void PerformMeleeAttack()
+    {
+        lastMeleeAttackTime = Time.time; // ì¿¨íƒ€ì„ ì‹œì‘
+        // ì• ë‹ˆë©”ì´ì…˜ ì¬ìƒ ë° ë°ë¯¸ì§€ íŒì •ì€ MeleeAttackStateì—ì„œ ì²˜ë¦¬
+    }
+
+    public bool movementDisabled = false; 
+
+    public void TemporarilyDisableMovement(float duration) 
+    {
+        StartCoroutine(DisableMovementRoutine(duration)); 
+    }
+
+    private IEnumerator DisableMovementRoutine(float duration) 
+    {
+        movementDisabled = true; 
+        yield return new WaitForSeconds(duration); 
+        movementDisabled = false; 
+    }
+
+    public void TakeDamage(float damageAmount)
+    {
+        if (Status.HP.Value <= 0 || stateMachine.CurrentState is RollState || stateMachine.CurrentState is PlayerDieState) // ì´ë¯¸ ì£½ì—ˆê±°ë‚˜, êµ¬ë¥´ê¸° ì¤‘ì´ê±°ë‚˜, Die ìƒíƒœë©´ ë¬´ì‹œ
+        {
+            return;
+        }
+
+        Status.HP.Value -= damageAmount; 
+        Debug.Log($"í”Œë ˆì´ì–´ê°€ ë°ë¯¸ì§€ : {damageAmount} ë°›ìŒ. í˜„ì¬ HP: {Status.HP.Value}"); 
+
+        if (Status.HP.Value > 0) 
+        {
+            ChangeState(EPlayerState.Hit); // Hit ìƒíƒœë¡œ ì „í™˜
+        }
+    }
+
+    private void Die()
+    {
+        if (stateMachine.CurrentState is PlayerDieState) return; 
+
+        Debug.Log("í”Œë ˆì´ì–´ ì‚¬ë§"); 
+        ChangeState(EPlayerState.Die); 
+        
+        BossController boss = FindObjectOfType<BossController>(); 
+        if (boss != null)
+        {
+            boss.NotifyPlayerDeath();
+        }
+    }
+
+
 }

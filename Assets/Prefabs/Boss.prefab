@@ -9,7 +9,7 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 4307131417808416034}
-  m_Layer: 0
+  m_Layer: 8
   m_Name: FirePoint
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -43,7 +43,7 @@ GameObject:
   - component: {fileID: 6966872555611151789}
   - component: {fileID: 488056681365393113}
   - component: {fileID: 6436384046333787138}
-  m_Layer: 0
+  m_Layer: 8
   m_Name: Boss
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -79,20 +79,21 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   playerTransform: {fileID: 0}
-  firePoint: {fileID: 4307131417808416034}
-  rangedAttackPrefab: {fileID: 5388878959043551877, guid: 2936c08ca90883d43b8a6ef11d5563d1, type: 3}
-  FlameSkillPrefab: {fileID: 8989521177737271785, guid: bcfea1bcd9ec3ec45b21426b7cca3a69, type: 3}
-  fireRainPrefab: {fileID: 1483842516258994374, guid: f3b73c1290f8469489fa262edc5ac427, type: 3}
-  maxHealth: 500
-  currentHealth: 0
-  attackPower: 20
+  initialMaxHealth: 500
+  initialAttackPower: 20
   moveSpeed: 3
+  pushForceOnMeleeHit: 5
+  meleeAttackPoint: {fileID: 299727855747157313}
   playerDetectionRange: 15
   maintainDistanceRange: 3
   generalAttackCooldown: 3
-  rangedAttackDistanceThreshold: 10
+  rangedAttackDistanceThreshold: 5
+  rangedAttackPrefab: {fileID: 5388878959043551877, guid: 2936c08ca90883d43b8a6ef11d5563d1, type: 3}
+  FlameSkillPrefab: {fileID: 8989521177737271785, guid: bcfea1bcd9ec3ec45b21426b7cca3a69, type: 3}
   FlameSkillInterval: 20
-  FlameSpawnOffset: 3
+  FlameSpawnOffsetHorizontal: 2
+  FlameSpawnOffsetBetweenPillars: 4
+  fireRainPrefab: {fileID: 1483842516258994374, guid: f3b73c1290f8469489fa262edc5ac427, type: 3}
   flyingSkillInterval: 60
   flyingSkillDuration: 10
   flyHeight: 5
@@ -182,6 +183,10 @@ PrefabInstance:
       propertyPath: m_Name
       value: cthulu
       objectReference: {fileID: 0}
+    - target: {fileID: -2253911629886400664, guid: f6ca9fd4ad6674547ac3f68a12e6cdb1, type: 3}
+      propertyPath: m_Layer
+      value: 8
+      objectReference: {fileID: 0}
     - target: {fileID: 1160356261127867848, guid: f6ca9fd4ad6674547ac3f68a12e6cdb1, type: 3}
       propertyPath: m_Controller
       value: 
@@ -216,7 +221,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 7878350319992209165, guid: f6ca9fd4ad6674547ac3f68a12e6cdb1, type: 3}
       propertyPath: m_LocalPosition.z
-      value: -4.9727654
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 7878350319992209165, guid: f6ca9fd4ad6674547ac3f68a12e6cdb1, type: 3}
       propertyPath: m_LocalRotation.w

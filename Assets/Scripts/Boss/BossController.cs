@@ -1,67 +1,73 @@
+// BossController.cs
 using System.Collections;
-using System.Collections.Generic;
 using UnityEngine;
 
-public class BossController : MonoBehaviour
+public class BossController : MonoBehaviour, IDamageable
 {
-    [Header("References")]
+    [Header("Core References")]
     public Transform playerTransform;
     public Animator Animator { get; private set; }
     public Rigidbody2D Rb { get; private set; }
-    public Transform firePoint; // ¿ø°Å¸® °ø°İ ¹ß»ç À§Ä¡
-    public GameObject rangedAttackPrefab;
-    public GameObject FlameSkillPrefab;
-    public GameObject fireRainPrefab;
+    public BossStatus Status { get; private set; } // BossStatus ì‚¬ìš©
+    public BossStateMachine StateMachine { get; private set; } // BossStateMachine ì°¸ì¡°
 
-    [Header("Stats")]
-    public float maxHealth = 500f;
-    public float currentHealth;
-    public int attackPower = 20;
+    [Header("Stats & Combat Base")]
+    [SerializeField] private float initialMaxHealth = 500f;
+    [SerializeField] private int initialAttackPower = 20;
     public float moveSpeed = 3f;
+    [SerializeField] private float pushForceOnMeleeHit = 5f;
+    [SerializeField] public Transform meleeAttackPoint; // ê·¼ì ‘ ê³µê²© íŒì • ìœ„ì¹˜ (BossMeleeAttackStateì—ì„œ ì‚¬ìš© ê°€ëŠ¥í•˜ë„ë¡)
+
 
     [Header("Detection & Movement")]
     public float playerDetectionRange = 15f;
-    public float maintainDistanceRange = 3f; // ÀÌ °Å¸® ¾ÈÂÊÀ¸·Î µé¾î¿À¸é ¸ØÃß°Å³ª µÚ·Î ¹°·¯³¯ ¼ö ÀÖÀ½
+    public float maintainDistanceRange = 3f;
+    private bool isPlayerDead = false;
 
-    [Header("Attack Settings")]
+    [Header("General Attack (Ranged/Melee)")]
     public float generalAttackCooldown = 3f;
-    public float rangedAttackDistanceThreshold = 7f; // ÀÌ °Å¸®º¸´Ù ¸Ö¸é ¿ø°Å¸®
-    // ±ÙÁ¢ °ø°İ ¹üÀ§, ÆÇÁ¤ µîÀº MeleeAttackState ¶Ç´Â ¿©±â¼­ Á÷Á¢ Ã³¸®
+    public float CurrentGeneralAttackCooldown { get; set; } // ì¼ë°˜ ê³µê²© í˜„ì¬ ì¿¨íƒ€ì„
+    public float rangedAttackDistanceThreshold = 7f; // ì›ê±°ë¦¬/ê·¼ì ‘ íŒë‹¨ ê¸°ì¤€ ê±°ë¦¬
+    [SerializeField] private GameObject rangedAttackPrefab; // ì›ê±°ë¦¬ ê³µê²© í”„ë¦¬íŒ¹
 
     [Header("Flame Skill")]
-    public float FlameSkillInterval = 20f;
-    public float FlameSpawnOffset = 3f; // º¸½º ±âÁØ ¾çÂÊÀ¸·Î ±âµÕ »ı¼º ½Ã °£°İ
+    [SerializeField] private GameObject FlameSkillPrefab; // í™”ì—¼ ê¸°ë‘¥ í”„ë¦¬íŒ¹
+    public float FlameSkillInterval = 20f; // í™”ì—¼ ê¸°ë‘¥ ìŠ¤í‚¬ ê°„ê²©
+    public float CurrentFlameSkillCooldown { get; set; } // í™”ì—¼ ê¸°ë‘¥ í˜„ì¬ ì¿¨íƒ€ì„
+    [SerializeField] private float FlameSpawnOffsetHorizontal = 2f; // í™”ì—¼ ê¸°ë‘¥ ìˆ˜í‰ ì˜¤í”„ì…‹
+    [SerializeField] private float FlameSpawnOffsetBetweenPillars = 1.5f; // ê¸°ë‘¥ ê°„ ì˜¤í”„ì…‹
 
     [Header("Flying Skill")]
-    public float flyingSkillInterval = 60f;
-    public float flyingSkillDuration = 10f;
-    public float flyHeight = 5f; // ÇöÀç À§Ä¡ ±âÁØ ºñÇà ³ôÀÌ
-    public float fireRainInterval = 0.5f; // ºÒºñ ³»¸®´Â °£°İ
-    public Vector2 flyingHorizontalMoveRange = new Vector2(-5f, 5f); // ºñÇà Áß ÁÂ¿ì ÀÌµ¿ ¹üÀ§ (¿ùµå ÁÂÇ¥ ±âÁØ ¶Ç´Â º¸½º ÃÊ±â À§Ä¡ ±âÁØ)
-
-    // ³»ºÎ Å¸ÀÌ¸Ó
-    public float CurrentGeneralAttackCooldown { get; set; }
-    public float CurrentFlameSkillCooldown { get; set; }
-    public float CurrentFlyingSkillCooldown { get; set; }
-    private float currentFlyingSkillActiveTime; // ºñÇà ½ºÅ³ Áö¼Ó ½Ã°£ ÃøÁ¤¿ë
+    [SerializeField] private GameObject fireRainPrefab; // ë¶ˆë¹„ í”„ë¦¬íŒ¹
+    public float flyingSkillInterval = 60f; // ë¹„í–‰ ìŠ¤í‚¬ ê°„ê²©
+    public float CurrentFlyingSkillCooldown { get; set; } // ë¹„í–‰ ìŠ¤í‚¬ í˜„ì¬ ì¿¨íƒ€ì„
+    [SerializeField] private float flyingSkillDuration = 10f; // ë¹„í–‰ ì§€ì† ì‹œê°„
+    [SerializeField] private float flyHeight = 5f; // ë¹„í–‰ ë†’ì´
+    [SerializeField] private float fireRainInterval = 0.5f; // ë¶ˆë¹„ ë°œì‚¬ ê°„ê²©
+    [SerializeField] private Vector2 flyingHorizontalMoveRange = new Vector2(-5f, 5f); // ë¹„í–‰ ì¤‘ ìˆ˜í‰ ì´ë™ ë²”ìœ„
+    private Coroutine flyingSkillCoroutine;
+    private float currentFlyingSkillActiveTime;
     private float currentFireRainCooldown;
+    private Vector3 initialGroundPosition;
 
-    public BossStateMachine StateMachine { get; private set; }
-    private bool isFacingRight = true;
+
+    private bool isFacingRight = true; // ì´ˆê¸° ë°©í–¥ (Awakeì—ì„œ ìŠ¤ì¼€ì¼ ê¸°ë°˜ìœ¼ë¡œ ì¬ì„¤ì •)
 
     void Awake()
     {
         Animator = GetComponentInChildren<Animator>();
         Rb = GetComponent<Rigidbody2D>();
-        currentHealth = maxHealth;
+        Status = new BossStatus(initialMaxHealth, initialAttackPower); 
 
         if (playerTransform == null)
         {
             GameObject playerObj = GameObject.FindGameObjectWithTag("Player");
-            playerTransform = playerObj.transform;
+            if (playerObj != null) playerTransform = playerObj.transform;
         }
 
         StateMachine = new BossStateMachine(this);
+
+        // FSM ìƒíƒœ ë“±ë¡
         StateMachine.AddState(EBossState.Idle, new BossIdleState(this, StateMachine));
         StateMachine.AddState(EBossState.Chase, new BossChaseState(this, StateMachine));
         StateMachine.AddState(EBossState.ChooseAttack, new BossChooseAttackState(this, StateMachine));
@@ -69,217 +75,364 @@ public class BossController : MonoBehaviour
         StateMachine.AddState(EBossState.MeleeAttack, new BossMeleeAttackState(this, StateMachine));
         StateMachine.AddState(EBossState.FlameAttack, new BossFlameSkillState(this, StateMachine));
         StateMachine.AddState(EBossState.FlyingAttack, new BossFlyingSkillState(this, StateMachine));
+        StateMachine.AddState(EBossState.Die, new BossDieState(this, StateMachine));
+        StateMachine.AddState(EBossState.Hit, new BossHitState(this, StateMachine));
 
-        CurrentGeneralAttackCooldown = 0f; // ½ÃÀÛ ½Ã ¹Ù·Î °ø°İ °¡´ÉÇÏµµ·Ï (¶Ç´Â ¾à°£ÀÇ µô·¹ÀÌ)
-        CurrentFlameSkillCooldown = FlameSkillInterval; // ½ÃÀÛ ÈÄ ÀÏÁ¤ ½Ã°£ µÚ ¹ßµ¿
-        CurrentFlyingSkillCooldown = flyingSkillInterval; // ½ÃÀÛ ÈÄ ÀÏÁ¤ ½Ã°£ µÚ ¹ßµ¿
+        CurrentGeneralAttackCooldown = 0f; // ì´ˆê¸° ì¿¨íƒ€ì„ ì„¤ì •
+        CurrentFlameSkillCooldown = FlameSkillInterval; 
+        CurrentFlyingSkillCooldown = flyingSkillInterval; 
+
+        // isFacingRight ì´ˆê¸°í™”: ìŠ¤í”„ë¼ì´íŠ¸ê°€ ê¸°ë³¸ì ìœ¼ë¡œ ì˜¤ë¥¸ìª½ì„ ë³´ê³  ìˆë‹¤ë©´ true, ì™¼ìª½ì´ë©´ false. ìŠ¤ì¼€ì¼ë¡œ íŒë‹¨.
+        if (transform.localScale.x < 0) isFacingRight = true;
+        else isFacingRight = false;
+
+
+        Status.HP.OnValueChanged += HandleHealthChanged; // HP ë³€ê²½ ì‹œ ì´ë²¤íŠ¸ í•¸ë“¤ëŸ¬ ë“±ë¡
+    }
+
+    void OnDestroy()
+    {
+        if (Status != null && Status.HP != null)
+            Status.HP.OnValueChanged -= HandleHealthChanged; // ì´ë²¤íŠ¸ í•¸ë“¤ëŸ¬ í•´ì œ
+    }
+
+    private void HandleHealthChanged(float newHP)
+    {
+        Debug.Log($"Boss HP Changed to: {newHP}");
+        if (newHP <= 0 && StateMachine.CurrentState is not BossDieState) // Die ìƒíƒœ ì¤‘ë³µ ì§„ì… ë°©ì§€ (DieState ì¶”ê°€ ì‹œ)
+        {
+            Die();
+        }
     }
 
     void Start()
     {
-        StateMachine.ChangeState(EBossState.Idle);
+        initialGroundPosition = transform.position; // ìµœì´ˆ ì§€ìƒ ìœ„ì¹˜ ì €ì¥
+        StateMachine.ChangeState(EBossState.Idle); // ì´ˆê¸° ìƒíƒœë¥¼ Idleë¡œ ì„¤ì •
     }
 
     void Update()
     {
-        if (playerTransform == null) return; // ÇÃ·¹ÀÌ¾î°¡ ¾øÀ¸¸é µ¿ÀÛ ¾ÈÇÔ
+        // í”Œë ˆì´ì–´ ì‚¬ë§ ì‹œ ì²˜ë¦¬ ë˜ëŠ” í”Œë ˆì´ì–´ê°€ ì—†ì„ ê²½ìš°
+        if (playerTransform == null || !playerTransform.gameObject.activeInHierarchy || isPlayerDead)
+        {
+            if (!isPlayerDead && (playerTransform == null || !playerTransform.gameObject.activeInHierarchy))
+            {
+                // í”Œë ˆì´ì–´ê°€ ì²˜ìŒìœ¼ë¡œ ìœ íš¨í•˜ì§€ ì•Šê²Œ ëœ ê²½ìš° (ì˜ˆ: ì‚¬ë§ í›„ ë¹„í™œì„±í™”)
+                isPlayerDead = true; // í”Œë ˆì´ì–´ ì‚¬ë§ìœ¼ë¡œ í‘œì‹œ
+                Debug.Log("ë³´ìŠ¤: í”Œë ˆì´ì–´ê°€ ìœ íš¨í•˜ì§€ ì•ŠìŒ (ì‚¬ë§ ë˜ëŠ” ë¹„í™œì„±í™”). Idle ìƒíƒœë¡œ ì „í™˜í•©ë‹ˆë‹¤.");
+            }
 
-        HandleCooldowns();
-        StateMachine.Update(); // ÇöÀç »óÅÂÀÇ Execute() È£Ãâ
-        FlipTowardsPlayer(); // ÇÃ·¹ÀÌ¾î ¹æÇâ º¸µµ·Ï
+            if (isPlayerDead && StateMachine.CurrentState is not BossIdleState && StateMachine.CurrentState is not BossDieState)
+            {
+                StateMachine.ChangeState(EBossState.Idle); // Idle ìƒíƒœë¡œ ì „í™˜
+            }
+             return; // ì—¬ê¸°ì„œ ë¦¬í„´í•˜ë©´ ì•„ë˜ì˜ HandleCooldowns, StateMachine.Update, FlipTowardsPlayer ë“±ì´ ì‹¤í–‰ë˜ì§€ ì•ŠìŒ
+        }
+        else
+        {
+            isPlayerDead = false; // í”Œë ˆì´ì–´ê°€ ìœ íš¨í•˜ë©´ ì‚¬ë§ ìƒíƒœ í•´ì œ
+        }
+
+
+        if (!enabled && StateMachine.CurrentState is BossDieState)
+        {
+            return;
+        }
+
+        // í”Œë ˆì´ì–´ê°€ ì‚´ì•„ìˆì„ ë•Œë§Œ ì¿¨ë‹¤ìš´, FSM ì—…ë°ì´íŠ¸, í”Œë ˆì´ì–´ ë°©í–¥ ë³´ê¸° ì‹¤í–‰
+        if (!isPlayerDead)
+        {
+            HandleCooldowns(); //
+            StateMachine.Update(); //
+            if (StateMachine.CurrentState is not BossDieState) // Die ìƒíƒœê°€ ì•„ë‹ ë•Œë§Œ í”Œë ˆì´ì–´ ë°©í–¥ìœ¼ë¡œ Flip
+            {
+                FlipTowardsPlayer(); //
+            }
+        }
+        else // í”Œë ˆì´ì–´ê°€ ì£½ì—ˆë‹¤ë©´ FSM ì—…ë°ì´íŠ¸ëŠ” ë©ˆì¶”ê³ , ë³´ìŠ¤ëŠ” Idle ìƒíƒœì˜ Executeë§Œ ì‹¤í–‰ (ë˜ëŠ” ì•„ë¬´ê²ƒë„ ì•ˆ í•¨)
+        {
+            if (StateMachine.CurrentState is BossIdleState) // ì´ë¯¸ Idle ìƒíƒœë¼ë©´ Idleì˜ Execute ì‹¤í–‰
+            {
+                StateMachine.Update(); // Idle ì• ë‹ˆë©”ì´ì…˜ ìœ ì§€ ë“±
+            }
+        }
+    }
+
+    public void NotifyPlayerDeath()
+    {
+        isPlayerDead = true;
+        if (StateMachine.CurrentState is not BossIdleState && StateMachine.CurrentState is not BossDieState)
+        {
+            StateMachine.ChangeState(EBossState.Idle);
+        }
     }
 
     private void HandleCooldowns()
     {
-        if (CurrentGeneralAttackCooldown > 0) CurrentGeneralAttackCooldown -= Time.deltaTime;
-        if (CurrentFlameSkillCooldown > 0) CurrentFlameSkillCooldown -= Time.deltaTime;
-        if (CurrentFlyingSkillCooldown > 0) CurrentFlyingSkillCooldown -= Time.deltaTime;
-
-        // ºñÇà ½ºÅ³ Áö¼Ó ½Ã°£ ¹× ºÒºñ Äğ´Ù¿îÀº FlyingSkillState¿¡¼­ Á÷Á¢ °ü¸®ÇÏ°Å³ª ¿©±â¼­ ÇÒ ¼öµµ ÀÖÀ½
+        if (CurrentGeneralAttackCooldown > 0) CurrentGeneralAttackCooldown -= Time.deltaTime; 
+        if (CurrentFlameSkillCooldown > 0) CurrentFlameSkillCooldown -= Time.deltaTime; 
+        if (CurrentFlyingSkillCooldown > 0) CurrentFlyingSkillCooldown -= Time.deltaTime; 
     }
 
     public void FlipTowardsPlayer()
     {
         if (playerTransform == null) return;
-        float directionToPlayer = playerTransform.position.x - transform.position.x;
-        if (directionToPlayer > 0 && !isFacingRight)
-        {
-            Flip();
-        }
-        else if (directionToPlayer < 0 && isFacingRight)
-        {
-            Flip();
-        }
+        float directionToPlayerX = playerTransform.position.x - transform.position.x;
+        if (directionToPlayerX > 0.1f && !isFacingRight) Flip(); 
+        else if (directionToPlayerX < -0.1f && isFacingRight) Flip(); 
     }
 
     public void Flip()
     {
-        isFacingRight = !isFacingRight;
+        isFacingRight = !isFacingRight; 
         Vector3 scaler = transform.localScale;
         scaler.x *= -1;
-        transform.localScale = scaler;
+        transform.localScale = scaler; 
     }
 
     public float GetPlayerDistance()
     {
         if (playerTransform == null) return float.MaxValue;
-        return Vector2.Distance(transform.position, playerTransform.position);
+        return Vector2.Distance(transform.position, playerTransform.position); 
     }
 
     public Vector2 GetDirectionToPlayer()
     {
         if (playerTransform == null) return Vector2.zero;
-        return (playerTransform.position - transform.position).normalized;
+        return (playerTransform.position - transform.position).normalized; 
     }
 
-    public void PerformRangedAttack()
+    public void PerformRangedAttackAction()
     {
-        if (rangedAttackPrefab != null && firePoint != null)
+        if (rangedAttackPrefab != null)
         {
-            GameObject projectile = Instantiate(rangedAttackPrefab, firePoint.position, Quaternion.identity);
+            Vector3 spawnPosition = new Vector3(transform.position.x, transform.position.y, 0f);
 
-            Vector2 direction = GetDirectionToPlayer().normalized;
-            projectile.transform.right = direction; // Sprite È¸Àü (transform.rotationÀ¸·Îµµ °¡´É)
+            GameObject projectileInstance = Instantiate(rangedAttackPrefab, spawnPosition, Quaternion.identity);
 
-            // Rigidbody2D¸¦ ÅëÇÑ ÀÌµ¿ Ã³¸®
-            Rigidbody2D rb = projectile.GetComponent<Rigidbody2D>();
-            if (rb != null)
+            Vector2 launchDirection = isFacingRight ? Vector2.right : Vector2.left; 
+
+            EffectDamageHandler damageHandler = projectileInstance.GetComponent<EffectDamageHandler>();
+            if (damageHandler != null)
             {
-                float speed = 8f; // ¹ß»ç ¼Óµµ
-                rb.velocity = direction * speed;
+                damageHandler.Initialize(Status.ATK, gameObject, "Player"); 
             }
 
-            // ÀÏÁ¤ ½Ã°£ ÈÄ Á¦°Å
-            Destroy(projectile, 3f);
+            Rigidbody2D rb = projectileInstance.GetComponent<Rigidbody2D>();
+            if (rb != null)
+            {
+                float projectileSpeed = 10f; // íˆ¬ì‚¬ì²´ ì†ë„
+                rb.velocity = launchDirection * projectileSpeed; // Xì¶•ìœ¼ë¡œë§Œ ì†ë„ ì„¤ì •
+
+                float angle = Mathf.Atan2(launchDirection.y, launchDirection.x) * Mathf.Rad2Deg; 
+                projectileInstance.transform.rotation = Quaternion.Euler(0f, 0f, angle); 
+            }
+        }
+        CurrentGeneralAttackCooldown = generalAttackCooldown; 
+    }
+
+    public void PerformMeleeAttackAction()
+    {
+        if (playerTransform != null && GetPlayerDistance() <= maintainDistanceRange + 0.5f) 
+        {
+            Rigidbody2D playerRb = playerTransform.GetComponent<Rigidbody2D>();
+            PlayerController playerCtrl = playerTransform.GetComponent<PlayerController>(); 
+            if (playerRb != null)
+            {
+                // ë„‰ë°± ë°©í–¥ (Xì¶•ë§Œ)
+                float direction = Mathf.Sign(playerTransform.position.x - transform.position.x); 
+                Vector2 knockback = new Vector2(direction * pushForceOnMeleeHit, 0f); 
+                playerRb.velocity = new Vector2(knockback.x, 0f); 
+
+            }
         }
 
-        CurrentGeneralAttackCooldown = generalAttackCooldown;
+        CurrentGeneralAttackCooldown = generalAttackCooldown; 
     }
 
-    public void PerformMeleeAttack()
-    {
-        //Animator.Play("MeleeAttack");
-        // ¿©±â¿¡ ±ÙÁ¢ °ø°İ ÆÇÁ¤ ·ÎÁ÷ (¿¹: Æ¯Á¤ ½ÃÁ¡¿¡ OverlapCircle µî »ç¿ë)
-        // ¿¹½Ã: StartCoroutine(MeleeAttackDamagePhase(0.5f, 1f)); // 0.5ÃÊ µÚ 1ÃÊ°£ °ø°İ ÆÇÁ¤
-        CurrentGeneralAttackCooldown = generalAttackCooldown;
-    }
 
-    public void PerformFlameSkill()
+    public void PerformFlameSkillAction()
     {
-        //Animator.Play("Idle"); // "Idle" ¾Ö´Ï¸ŞÀÌ¼Ç ´ë½Å "FlameSkill_Cast"¿Í °°Àº Àü¿ë ¾Ö´Ï¸ŞÀÌ¼Ç ±ÇÀå
-        // ¾çÂÊ¿¡ ±âµÕ »ı¼º
         if (FlameSkillPrefab != null)
         {
-            Instantiate(FlameSkillPrefab, transform.position + Vector3.left * FlameSpawnOffset, Quaternion.identity);
-            Instantiate(FlameSkillPrefab, transform.position + Vector3.right * FlameSpawnOffset, Quaternion.identity);
+            Vector3 baseOffsetDir = isFacingRight ? Vector3.right : Vector3.left; // ë³´ìŠ¤ ë°©í–¥ ê¸°ì¤€
+
+            // ì˜¤ë¥¸ìª½ ê·¸ë£¹
+            Instantiate(FlameSkillPrefab, transform.position + baseOffsetDir * FlameSpawnOffsetHorizontal, Quaternion.identity); 
+            Instantiate(FlameSkillPrefab, transform.position + baseOffsetDir * (FlameSpawnOffsetHorizontal + FlameSpawnOffsetBetweenPillars), Quaternion.identity); 
+            // ì™¼ìª½ ê·¸ë£¹
+            Instantiate(FlameSkillPrefab, transform.position - baseOffsetDir * FlameSpawnOffsetHorizontal, Quaternion.identity); 
+            Instantiate(FlameSkillPrefab, transform.position - baseOffsetDir * (FlameSpawnOffsetHorizontal + FlameSpawnOffsetBetweenPillars), Quaternion.identity); 
+
         }
-        CurrentFlameSkillCooldown = FlameSkillInterval;
+        CurrentFlameSkillCooldown = FlameSkillInterval; 
     }
 
-
-    // Flying Skill °ü·Ã ÄÚ·çÆ¾ ¹× »óÅÂ °ü¸®
-    private Coroutine flyingSkillCoroutine;
     public void StartFlyingSequence()
     {
-        if (flyingSkillCoroutine != null) StopCoroutine(flyingSkillCoroutine);
-        flyingSkillCoroutine = StartCoroutine(FlyingSkillRoutine());
-        CurrentFlyingSkillCooldown = flyingSkillInterval;
+        if (flyingSkillCoroutine != null) StopCoroutine(flyingSkillCoroutine); 
+        flyingSkillCoroutine = StartCoroutine(FlyingSkillRoutine()); 
+        CurrentFlyingSkillCooldown = flyingSkillInterval; 
     }
 
     private IEnumerator FlyingSkillRoutine()
     {
-        Animator.Play("Fly"); // "Fly" ¾Ö´Ï¸ŞÀÌ¼Ç
-        // »óÅÂ º¯°æ ·ÎÁ÷Àº FlyingSkillState¿¡¼­ Ã³¸®ÇÒ °ÍÀÌ¹Ç·Î ¿©±â¼­´Â ¾Ö´Ï¸ŞÀÌ¼Ç°ú ½ÇÁ¦ µ¿ÀÛ¸¸
+        Vector3 currentFlyTargetPos = new Vector3(transform.position.x, initialGroundPosition.y + flyHeight, transform.position.z); 
 
-        Vector3 originalPosition = transform.position;
-        Vector3 flyTargetPosition = new Vector3(transform.position.x, originalPosition.y + flyHeight, transform.position.z); // ¶Ç´Â °íÁ¤µÈ Y °ª
-
-        // À§·Î ³¯¾Æ¿À¸£±â
-        float flyUpDuration = 1f; // ¿¹½Ã: 1ÃÊ°£ ³¯¾Æ¿À¸§
+        float flyUpDuration = 1f;
         float elapsedTime = 0f;
+        Vector3 startPos = transform.position;
         while (elapsedTime < flyUpDuration)
         {
-            transform.position = Vector3.Lerp(originalPosition, flyTargetPosition, elapsedTime / flyUpDuration);
+            transform.position = Vector3.Lerp(startPos, currentFlyTargetPos, elapsedTime / flyUpDuration); 
             elapsedTime += Time.deltaTime;
             yield return null;
         }
-        transform.position = flyTargetPosition;
+        transform.position = currentFlyTargetPos; 
 
-        // ºñÇà Áß °ø°İ
         currentFlyingSkillActiveTime = 0f;
         currentFireRainCooldown = 0f;
-        float startX = transform.position.x; // ÃÊ±â x À§Ä¡ ±â¾ï
 
-        while (currentFlyingSkillActiveTime < flyingSkillDuration)
+        while (currentFlyingSkillActiveTime < flyingSkillDuration) 
         {
-            // ÁÂ¿ì·Î ·£´ı ÀÌµ¿
-            // ¸ñÇ¥ X À§Ä¡¸¦ flyingHorizontalMoveRange ³»¿¡¼­ ¼³Á¤ (ÇöÀç À§Ä¡ ±âÁØ ¶Ç´Â ¿ùµå ±âÁØ)
-            float targetX = startX + Random.Range(flyingHorizontalMoveRange.x, flyingHorizontalMoveRange.y);
-            Vector3 moveTargetPos = new Vector3(targetX, transform.position.y, transform.position.z);
+            float targetX = initialGroundPosition.x + Random.Range(flyingHorizontalMoveRange.x, flyingHorizontalMoveRange.y); 
+            Vector3 moveTargetInAir = new Vector3(targetX, transform.position.y, transform.position.z);
 
-            // ÀÌµ¿ (°£´ÜÇÑ Lerp ¶Ç´Â ´Ù¸¥ ÀÌµ¿ ¹æ½Ä)
-            float moveDuration = 1.5f; // ¿¹½Ã: »õ À§Ä¡±îÁö 1.5ÃÊ
+            float moveDurationThisSegment = Random.Range(1.0f, 2.0f);
             elapsedTime = 0f;
-            Vector3 currentFlyPos = transform.position;
-            while (elapsedTime < moveDuration)
+            Vector3 segmentStartPos = transform.position;
+            while (elapsedTime < moveDurationThisSegment)
             {
-                transform.position = Vector3.Lerp(currentFlyPos, moveTargetPos, elapsedTime / moveDuration);
+                transform.position = Vector3.Lerp(segmentStartPos, moveTargetInAir, elapsedTime / moveDurationThisSegment); 
                 elapsedTime += Time.deltaTime;
-                // ºÒºñ ÅõÇÏ ·ÎÁ÷ (ÀÌµ¿ Áß¿¡µµ °è¼Ó)
-                if (currentFireRainCooldown <= 0)
+
+                currentFireRainCooldown -= Time.deltaTime;
+                if (currentFireRainCooldown <= 0) 
                 {
-                    if (fireRainPrefab != null)
+                    if (fireRainPrefab != null) 
                     {
-                        Instantiate(fireRainPrefab, transform.position, Quaternion.identity); // firePoint°¡ ÀÖ´Ù¸é ±× À§Ä¡¿¡¼­
+                        Vector3 rainSpawnPos = new Vector3(transform.position.x, transform.position.y - 0.5f, transform.position.z); // ë¶ˆë¹„ ìƒì„± ìœ„ì¹˜
+                        GameObject fireBallInstance = Instantiate(fireRainPrefab, rainSpawnPos, Quaternion.identity); 
+                        Projectile fireRainProjectile = fireBallInstance.GetComponent<Projectile>();
+                        if (fireRainProjectile != null)
+                        {
+                            fireRainProjectile.Initialize(Vector2.down, Status.ATK, gameObject); // ë¶ˆë¹„ ë°ë¯¸ì§€ ë° ë°©í–¥ ì„¤ì •
+                        }
                     }
-                    currentFireRainCooldown = fireRainInterval;
+                    currentFireRainCooldown = fireRainInterval; 
                 }
-                else
-                {
-                    currentFireRainCooldown -= Time.deltaTime;
-                }
-                currentFlyingSkillActiveTime += Time.deltaTime;
-                if (currentFlyingSkillActiveTime >= flyingSkillDuration) break;
+                currentFlyingSkillActiveTime += Time.deltaTime; 
+                if (currentFlyingSkillActiveTime >= flyingSkillDuration) break; 
                 yield return null;
             }
-            if (currentFlyingSkillActiveTime >= flyingSkillDuration) break;
+            if (currentFlyingSkillActiveTime >= flyingSkillDuration) break; 
         }
 
-        // ÂøÁö
-        Debug.Log("Boss flying skill ending. Landing.");
         elapsedTime = 0f;
         float landDuration = 1f;
-        Vector3 beforeLandPos = transform.position;
+        Vector3 beforeLandPosition = transform.position;
+        // ì°©ì§€ ëª©í‘œ: í˜„ì¬ x, zì™€ ì´ˆê¸° y
+        Vector3 finalLandingPosition = new Vector3(transform.position.x, initialGroundPosition.y, transform.position.z); 
+
         while (elapsedTime < landDuration)
         {
-            transform.position = Vector3.Lerp(beforeLandPos, originalPosition, elapsedTime / landDuration);
+            transform.position = Vector3.Lerp(beforeLandPosition, finalLandingPosition, elapsedTime / landDuration); 
             elapsedTime += Time.deltaTime;
             yield return null;
         }
-        transform.position = originalPosition;
-        Animator.Play("Idle"); // ¶Ç´Â ÂøÁö ¾Ö´Ï¸ŞÀÌ¼Ç ÈÄ Idle
-
-        Debug.Log("Boss flying skill finished.");
-        // FlyingSkillState¿¡¼­ Idle/Chase·Î ÀüÈ¯
-        StateMachine.ChangeState(EBossState.Idle); // ¿¹½Ã, ½ÇÁ¦·Î´Â »óÅÂ Å¬·¡½º¿¡¼­ Ã³¸®
+        transform.position = finalLandingPosition; 
+        flyingSkillCoroutine = null;
+        StateMachine.ChangeState(EBossState.Idle); // ë¹„í–‰ í›„ Idle ìƒíƒœë¡œ
     }
 
-    public void StopFlyingSequence() // ¿ÜºÎ¿¡¼­ ºñÇàÀ» Áß´Ü½ÃÅ³ °æ¿ì (¿¹: Æ¯Á¤ Á¶°Ç, ÆäÀÌÁî º¯°æ µî)
+    public void StopFlyingSequenceAndLand()
     {
         if (flyingSkillCoroutine != null)
         {
-            StopCoroutine(flyingSkillCoroutine);
-            // ÇÊ¿äÇÏ´Ù¸é Áï½Ã ÂøÁö ·ÎÁ÷ ¶Ç´Â ¿ø·¡ À§Ä¡ º¹±Í ·ÎÁ÷
-            transform.position = new Vector3(transform.position.x, transform.position.y - flyHeight, transform.position.z); // °£´Ü º¹±Í
-            Animator.Play("Idle");
+            StopCoroutine(flyingSkillCoroutine); 
+            StartCoroutine(ForceLandRoutine(initialGroundPosition.y)); 
+        }
+        flyingSkillCoroutine = null;
+    }
+
+    private IEnumerator ForceLandRoutine(float targetY)
+    {
+        Vector3 currentPos = transform.position;
+        Vector3 targetFloorPos = new Vector3(currentPos.x, targetY, currentPos.z); 
+
+        float elapsedTime = 0f;
+        float landDuration = 0.5f; // ê°•ì œ ì°©ì§€ ì‹œê°„
+        while (elapsedTime < landDuration)
+        {
+            transform.position = Vector3.Lerp(currentPos, targetFloorPos, elapsedTime / landDuration); 
+            elapsedTime += Time.deltaTime;
+            yield return null;
+        }
+        transform.position = targetFloorPos; 
+        StateMachine.ChangeState(EBossState.Idle); // ê°•ì œ ì°©ì§€ í›„ Idle ìƒíƒœë¡œ
+    }
+
+    public bool IsFlying()
+    {
+        return flyingSkillCoroutine != null; // ì½”ë£¨í‹´ ì‹¤í–‰ ì—¬ë¶€ë¡œ ë¹„í–‰ ìƒíƒœ íŒë‹¨
+    }
+
+    public void TakeDamage(float damageAmount)
+    {
+        // ì´ë¯¸ ì£½ì—ˆê±°ë‚˜, í˜„ì¬ Hit ë˜ëŠ” Die ìƒíƒœì´ê±°ë‚˜, ë¹„í–‰ ì¤‘(ë¬´ì  íŒì •ì´ë¼ë©´) ë“± íŠ¹ì • ìƒíƒœì—ì„œ ë°ë¯¸ì§€ ë¬´ì‹œ
+        if (Status.HP.Value <= 0 ||
+            StateMachine.CurrentState is BossDieState ||
+            StateMachine.CurrentState is BossHitState ||
+            (StateMachine.CurrentState is BossFlyingSkillState && IsFlying())) // ë¹„í–‰ ì¤‘ ë¬´ì 
+        {
+            return;
+        }
+
+        Status.HP.Value -= damageAmount;
+        Debug.Log($"ë³´ìŠ¤ {damageAmount} ë°ë¯¸ì§€ ë°›ìŒ. í˜„ì¬ HP: {Status.HP.Value}");
+
+        if (Status.HP.Value > 0)
+        {
+            // í”¼ê²© ì‹œ ì–´ë–¤ ìƒíƒœì— ìˆë“  Hit ìƒíƒœë¡œ ì „í™˜
+            // ì´ë ‡ê²Œ í•˜ë©´ ì´ì „ ìƒíƒœì˜ ë¡œì§ì´ ì¤‘ë‹¨ë˜ê³  Hit ìƒíƒœì˜ ë¡œì§(ì• ë‹ˆë©”ì´ì…˜ ì¬ìƒ í›„ Idle/Chase)ì´ ì‹¤í–‰
+            StateMachine.ChangeState(EBossState.Hit);
         }
     }
 
-    public bool IsFlyingSkillActive()
+
+    private void Die()
     {
-        return currentFlyingSkillActiveTime < flyingSkillDuration && currentFlyingSkillActiveTime > 0; // È¤Àº StateMachine.CurrentState is BossFlyingSkillState
+        if (StateMachine.CurrentState is BossDieState) return; // ì´ë¯¸ Die ìƒíƒœë©´ ì¤‘ë³µ ì‹¤í–‰ ë°©ì§€
+
+        Debug.Log("ë³´ìŠ¤ ì‚¬ë§");
+        StateMachine.ChangeState(EBossState.Die); // FSMì„ í†µí•´ Die ìƒíƒœë¡œ ì „í™˜
     }
 
-    // ÇÃ·¹ÀÌ¾î¿¡°Ô µ¥¹ÌÁö¸¦ ÀÔÈ÷´Â ÇÔ¼ö (IDamageable ±¸Çö ½Ã »ç¿ë)
-    // public void TakeDamage(float damage) { ... }
+    public void HandleDeathEffectsAndCleanup()
+    {
+        StopAllCoroutines(); // ëª¨ë“  ì½”ë£¨í‹´ ì¤‘ì§€
+        if (Rb != null)
+        {
+            Rb.velocity = Vector2.zero;
+            Rb.isKinematic = true; // ë¬¼ë¦¬ íš¨ê³¼ ì¤‘ì§€
+        }
+        Collider2D col = GetComponent<Collider2D>();
+        if (col != null) col.enabled = false; // ì½œë¼ì´ë” ë¹„í™œì„±í™”
+
+        // ì˜ˆ: ì•„ì´í…œ ë“œë, ì ìˆ˜ ì²˜ë¦¬, ëª‡ ì´ˆ ë’¤ ì˜¤ë¸Œì íŠ¸ íŒŒê´´ ë“±
+        Destroy(gameObject, 5f); // 5ì´ˆ ë’¤ ì˜¤ë¸Œì íŠ¸ íŒŒê´´
+        enabled = false; // ëª¨ë“  ë¡œì§ ì²˜ë¦¬ í›„ ìŠ¤í¬ë¦½íŠ¸ ë¹„í™œì„±í™”
+    }
+    void OnDrawGizmosSelected()
+    {
+        Gizmos.color = Color.red;
+        Gizmos.DrawWireSphere(transform.position, rangedAttackDistanceThreshold); // ì›ê±°ë¦¬ ê³µê²© ì„ê³„ ê±°ë¦¬ ì‹œê°í™”
+
+        Gizmos.color = Color.yellow;
+        Gizmos.DrawWireSphere(transform.position, maintainDistanceRange); // ìœ ì§€ ê±°ë¦¬ ì‹œê°í™”
+
+        Gizmos.color = Color.green;
+        Gizmos.DrawWireSphere(transform.position, playerDetectionRange); // í”Œë ˆì´ì–´ ê°ì§€ ë²”ìœ„ ì‹œê°í™”
+    }
 }

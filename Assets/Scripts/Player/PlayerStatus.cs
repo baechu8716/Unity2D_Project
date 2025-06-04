@@ -5,15 +5,14 @@ using UnityEngine;
 
 public class PlayerStatus
 {
+    public ObservableProperty<float> HP { get; private set; } // ê¸°ì¡´ Healthì—ì„œ HPë¡œ ë³€ê²½ (ì¼ê´€ì„±)
     public ObservableProperty<int> ATK { get; private set; }
-    public ObservableProperty<float> Health { get; private set; }
-    public ObservableProperty<bool> IsGrounded { get; private set; }
 
-    public PlayerStatus(float initialHealth, int initialATK) // »ı¼ºÀÚ¿¡ °ø°İ·Â ÃÊ±â°ª Ãß°¡
+    // ìƒì„±ìì—ì„œ ATK ì´ˆê¸°í™” ì¶”ê°€
+    public PlayerStatus(float initialHp, int initialAtk) // PlayerController.csì˜ Awakeì™€ ì¼ì¹˜ì‹œí‚´
     {
-        Health = new ObservableProperty<float>(initialHealth);
-        IsGrounded = new ObservableProperty<bool>(true);
-        ATK = new ObservableProperty<int>(initialATK); // °ø°İ·Â ÃÊ±âÈ­
+        HP = new ObservableProperty<float>(initialHp);
+        ATK = new ObservableProperty<int>(initialAtk);
     }
 }
 

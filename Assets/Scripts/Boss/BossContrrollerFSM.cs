@@ -1,47 +1,42 @@
 using System.Collections;
 using System.Collections.Generic;
+using System.Linq;
 using UnityEngine;
 
 public class BossIdleState : BossBaseState
 {
-    public BossIdleState(BossController boss, BossStateMachine stateMachine) : base(boss, stateMachine) { }
+    public BossIdleState(BossController boss, BossStateMachine stateMachine) : base(boss, stateMachine) { } //
 
     public override void Enter()
     {
         boss.Animator.Play("Idle"); 
-        boss.Rb.velocity = Vector2.zero; // Á¤Áö
+        boss.Rb.velocity = Vector2.zero; 
     }
 
     public override void Execute()
     {
-        // ÃÖ¿ì¼± ¼øÀ§: Flying Skill
-        if (boss.CurrentFlyingSkillCooldown <= 0)
+        if (boss.CurrentFlyingSkillCooldown <= 0) 
         {
-            stateMachine.ChangeState(EBossState.FlyingAttack);
+            stateMachine.ChangeState(EBossState.FlyingAttack); 
             return;
         }
-        // ´ÙÀ½ ¿ì¼± ¼øÀ§: Flame Skill
-        if (boss.CurrentFlameSkillCooldown <= 0)
+        if (boss.CurrentFlameSkillCooldown <= 0) 
         {
-            stateMachine.ChangeState(EBossState.FlameAttack);
+            stateMachine.ChangeState(EBossState.FlameAttack); 
             return;
         }
-
-        // ÇÃ·¹ÀÌ¾î °¨Áö
-        if (boss.GetPlayerDistance() <= boss.playerDetectionRange)
+        if (boss.GetPlayerDistance() <= boss.playerDetectionRange) 
         {
             stateMachine.ChangeState(EBossState.Chase);
             return;
         }
-        // ±× ¿Ü¿¡´Â °è¼Ó Idle
     }
-
     public override void Exit() { }
 }
 
 public class BossChaseState : BossBaseState
 {
-    public BossChaseState(BossController boss, BossStateMachine stateMachine) : base(boss, stateMachine) { }
+    public BossChaseState(BossController boss, BossStateMachine stateMachine) : base(boss, stateMachine) { } 
 
     public override void Enter()
     {
@@ -50,19 +45,6 @@ public class BossChaseState : BossBaseState
 
     public override void Execute()
     {
-        // ÃÖ¿ì¼± ¼øÀ§: Flying Skill
-        if (boss.CurrentFlyingSkillCooldown <= 0)
-        {
-            stateMachine.ChangeState(EBossState.FlyingAttack);
-            return;
-        }
-        // ´ÙÀ½ ¿ì¼± ¼øÀ§: Flame Skill
-        if (boss.CurrentFlameSkillCooldown <= 0)
-        {
-            stateMachine.ChangeState(EBossState.FlameAttack);
-            return;
-        }
-
         float distanceToPlayer = boss.GetPlayerDistance();
 
         if (distanceToPlayer > boss.playerDetectionRange)
@@ -71,241 +53,309 @@ public class BossChaseState : BossBaseState
             return;
         }
 
-        // ÀÏ¹İ °ø°İ ÄğÅ¸ÀÓÀÌ µÇ¾ú´Ù¸é °ø°İ ¼±ÅÃ »óÅÂ·Î
-        if (boss.CurrentGeneralAttackCooldown <= 0)
+        if (boss.CurrentFlyingSkillCooldown <= 0)
         {
-            // maintainDistanceRangeº¸´Ù °¡±î¿ì¸é ¹Ù·Î °ø°İ ¼±ÅÃ, ¾Æ´Ï¸é ´õ ´Ù°¡°¡±â
-            if (distanceToPlayer <= boss.maintainDistanceRange || distanceToPlayer <= boss.rangedAttackDistanceThreshold) // °ø°İ °¡´É °Å¸®
-            {
-                stateMachine.ChangeState(EBossState.ChooseAttack);
-                return;
-            }
+            stateMachine.ChangeState(EBossState.FlyingAttack);
+            return;
         }
 
-        // ÇÃ·¹ÀÌ¾î¿¡°Ô ÀÌµ¿ (maintainDistanceRange ¹Ù±ù¿¡ ÀÖÀ» ¶§¸¸)
+        if (boss.CurrentFlameSkillCooldown <= 0)
+        {
+            stateMachine.ChangeState(EBossState.FlameAttack);
+            return;
+        }
+
+        if (boss.CurrentGeneralAttackCooldown <= 0 &&
+            distanceToPlayer <= boss.rangedAttackDistanceThreshold)
+        {
+            stateMachine.ChangeState(EBossState.ChooseAttack);
+            return;
+        }
+
         if (distanceToPlayer > boss.maintainDistanceRange)
         {
             Vector2 direction = boss.GetDirectionToPlayer();
             boss.Rb.velocity = direction * boss.moveSpeed;
+
+            // ì›€ì§ì´ê¸° ì‹œì‘í•˜ë©´ Walk ì• ë‹ˆë©”ì´ì…˜ ì¬ìƒ
+            if (!boss.Animator.GetCurrentAnimatorStateInfo(0).IsName("Walk"))
+                boss.Animator.Play("Walk");
         }
         else
         {
-            boss.Rb.velocity = Vector2.zero; // ³Ê¹« °¡±î¿ì¸é ÀÏ´Ü ¸ØÃã (¶Ç´Â ChooseAttackÀ¸·Î ¹Ù·Î °¨)
-            // ¸¸¾à maintainDistanceRange°¡ 0ÀÌ°í, Ç×»ó °ø°İ ¹üÀ§±îÁö ´Ù°¡°£´Ù¸é ÀÌ Á¶°ÇÀº ChooseAttack °áÁ¤¿¡ Æ÷ÇÔ
-            if (boss.CurrentGeneralAttackCooldown <= 0) // °¡±î¿îµ¥ ÄğÅ¸ÀÓµµ µ¹¾ÒÀ¸¸é °ø°İ
-            {
-                stateMachine.ChangeState(EBossState.ChooseAttack);
-                return;
-            }
+            boss.Rb.velocity = Vector2.zero;
+
+            // ê°€ê¹Œì´ ìˆì–´ ë©ˆì¶”ë©´ Idle ì• ë‹ˆë©”ì´ì…˜ ì¬ìƒ
+            if (!boss.Animator.GetCurrentAnimatorStateInfo(0).IsName("Idle"))
+                boss.Animator.Play("Idle");
         }
     }
 
-    public override void Exit()
-    {
-        boss.Rb.velocity = Vector2.zero; // »óÅÂ Á¾·á ½Ã ¿òÁ÷ÀÓ Á¤Áö
-    }
+    public override void Exit() { boss.Rb.velocity = Vector2.zero; } 
 }
+
 
 public class BossChooseAttackState : BossBaseState
 {
-    public BossChooseAttackState(BossController boss, BossStateMachine stateMachine) : base(boss, stateMachine) { }
+    public BossChooseAttackState(BossController boss, BossStateMachine stateMachine) : base(boss, stateMachine) { } 
 
     public override void Enter()
     {
-        boss.Rb.velocity = Vector2.zero; // °ø°İ ¼±ÅÃ Áß¿¡´Â ¸ØÃã
+        boss.Rb.velocity = Vector2.zero; 
 
-        // ÇÃ·¹ÀÌ¾î°¡ ¾ø°Å³ª ³Ê¹« ¸Ö¾îÁ³À¸¸é Idle (¾ÈÀüÀåÄ¡)
-        if (boss.playerTransform == null || boss.GetPlayerDistance() > boss.playerDetectionRange)
+        if (boss.playerTransform == null || boss.GetPlayerDistance() > boss.playerDetectionRange) 
         {
-            stateMachine.ChangeState(EBossState.Idle);
+            stateMachine.ChangeState(EBossState.Idle); 
             return;
         }
 
-        // ¿©±â¼­ ¹Ù·Î °Å¸® ÆÇ´Ü ÈÄ »óÅÂ º¯°æ
-        if (boss.GetPlayerDistance() <= boss.rangedAttackDistanceThreshold)
+        float distanceToPlayer = boss.GetPlayerDistance(); 
+
+        // ì´ ìƒíƒœì— ì§„ì…í–ˆë‹¤ë©´ rangedAttackDistanceThreshold ì•ˆì— ìˆëŠ” ê²ƒìœ¼ë¡œ ê°€ì • (ChaseStateì—ì„œ íŒë‹¨)
+        if (distanceToPlayer > boss.maintainDistanceRange) // ë…¸ë€ ì› ë°– (í•˜ì§€ë§Œ ë¹¨ê°„ ì› ì•ˆ) -> ì›ê±°ë¦¬
         {
-            stateMachine.ChangeState(EBossState.RangedAttack);
+            stateMachine.ChangeState(EBossState.RangedAttack); 
         }
-        else
+        else // ë…¸ë€ ì› ì•ˆ -> ê·¼ì ‘
         {
-            stateMachine.ChangeState(EBossState.MeleeAttack);
+            stateMachine.ChangeState(EBossState.MeleeAttack); 
         }
     }
-
-    public override void Execute()
-    {
-        // Enter¿¡¼­ ¹Ù·Î »óÅÂ¸¦ º¯°æÇÏ¹Ç·Î Execute´Â ºñ¿öµÎ°Å³ª,
-        // ¸¸¾à ¼±ÅÃ¿¡ ½Ã°£ÀÌ °É¸®´Â ¾Ö´Ï¸ŞÀÌ¼Ç µîÀÌ ÀÖ´Ù¸é ¿©±â¼­ Ã³¸®
-    }
-
+    public override void Execute() { }
     public override void Exit() { }
 }
 
+
 public class BossRangedAttackState : BossBaseState
 {
-    private float attackAnimDuration = 1.5f; // ¿¹½Ã: ¿ø°Å¸® °ø°İ ¾Ö´Ï¸ŞÀÌ¼Ç ±æÀÌ, ½ÇÁ¦ °ªÀ¸·Î º¯°æ
-    private float timer;
-    private bool attackPerformed;
+    private float attackAnimDuration = 1.5f; 
+    private float timer; 
+    private bool attackActionTriggered; 
 
-    public BossRangedAttackState(BossController boss, BossStateMachine stateMachine) : base(boss, stateMachine)
-    {
-        // ¾Ö´Ï¸ŞÀÌ¼Ç ±æÀÌ¸¦ BossController³ª AnimationClip¿¡¼­ Á÷Á¢ °¡Á®¿Àµµ·Ï ¼öÁ¤ °¡´É
-        // ¿¹: attackAnimDuration = boss.GetAnimationLength("Attack_1");
-    }
+    public BossRangedAttackState(BossController boss, BossStateMachine stateMachine) : base(boss, stateMachine) { } 
 
     public override void Enter()
     {
-        timer = 0f;
-        attackPerformed = false;
-        boss.Rb.velocity = Vector2.zero; // °ø°İ Áß¿¡´Â ¸ØÃã
         boss.Animator.Play("RangeAttack"); 
+        timer = 0f; 
+        attackActionTriggered = false; 
+        boss.Rb.velocity = Vector2.zero; 
     }
 
     public override void Execute()
     {
-        timer += Time.deltaTime;
+        timer += Time.deltaTime; 
 
-        // ¾Ö´Ï¸ŞÀÌ¼Ç Æ¯Á¤ ½ÃÁ¡¿¡ °ø°İ ½ÇÇà (¾Ö´Ï¸ŞÀÌ¼Ç ÀÌº¥Æ® »ç¿ë ±ÇÀå)
-        // ¿©±â¼­´Â °£´ÜÈ÷ ½Ã°£ ±â¹İÀ¸·Î Ã³¸®
-        if (!attackPerformed && timer >= 0.5f) // ¿¹: 0.5ÃÊ µÚ ¹ß»ç
+        if (!attackActionTriggered && timer >= 0.5f) // ì˜ˆ: ì• ë‹ˆë©”ì´ì…˜ 0.5ì´ˆ ì‹œì ì— ë°œì‚¬
         {
-            boss.PerformRangedAttack(); // ÀÌ ÇÔ¼ö ³»¿¡¼­ ÄğÅ¸ÀÓ ÃÊ±âÈ­µÊ
-            attackPerformed = true;
+            boss.PerformRangedAttackAction(); // ìˆ˜ì •ëœ ë©”ì„œë“œ ì´ë¦„ ì‚¬ìš©
+            attackActionTriggered = true; 
         }
 
-        if (timer >= attackAnimDuration) // ¾Ö´Ï¸ŞÀÌ¼Ç Á¾·á ÈÄ
+        if (timer >= attackAnimDuration) 
         {
-            stateMachine.ChangeState(EBossState.Idle); // ¶Ç´Â Chase
+            stateMachine.ChangeState(EBossState.Idle); 
         }
     }
-
     public override void Exit() { }
 }
 
 public class BossMeleeAttackState : BossBaseState
 {
-    private float attackAnimDuration = 1f; // ±ÙÁ¢ °ø°İ ¾Ö´Ï¸ŞÀÌ¼Ç ±æÀÌ
-    private float timer;
-    private bool attackPerformed;
-    // ±ÙÁ¢ °ø°İ ÆÇÁ¤ Å¸ÀÌ¹Ö (¾Ö´Ï¸ŞÀÌ¼Ç ±âÁØ)
-    private float damageStartTime = 0.3f;
-    private float damageEndTime = 0.6f;
+    private float attackAnimDuration = 1f; 
+    private float timer; 
+    private bool damageDealtThisAttack; 
+
+    private float damageWindowStartTime = 0.3f; 
+    private float damageWindowEndTime = 0.6f; 
+    // meleeAttackRangeëŠ” BossControllerì—ì„œ ì§ì ‘ ê°€ì ¸ì˜¤ê±°ë‚˜, BossControllerì˜ meleeAttackPoint ì£¼ë³€ì„ íƒìƒ‰
+    private float meleeAttackRange; // ì´ ê°’ì€ BossControllerì—ì„œ ì„¤ì •ëœ ê°’ì„ ê°€ì ¸ì™€ì•¼ í•¨
 
 
-    public BossMeleeAttackState(BossController boss, BossStateMachine stateMachine) : base(boss, stateMachine) { }
+    public BossMeleeAttackState(BossController boss, BossStateMachine stateMachine) : base(boss, stateMachine)
+    {
+        this.meleeAttackRange = boss.maintainDistanceRange + 0.5f; 
+    }
 
     public override void Enter()
     {
-        timer = 0f;
-        attackPerformed = false; // ¿©±â¼­´Â µ¥¹ÌÁö ÆÇÁ¤ÀÌ ¹ß»ıÇß´ÂÁö ¿©ºÎ
-        boss.Rb.velocity = Vector2.zero;
-        boss.Animator.Play("MeleeAttack"); // ¾Ö´Ï¸ŞÀÌ¼Ç ÀÌ¸§ È®ÀÎ
+        boss.Animator.Play("MeleeAttack"); 
+        timer = 0f; 
+        damageDealtThisAttack = false; 
+        boss.Rb.velocity = Vector2.zero; 
     }
 
     public override void Execute()
     {
-        timer += Time.deltaTime;
+        timer += Time.deltaTime; 
 
-        // ¾Ö´Ï¸ŞÀÌ¼ÇÀÇ Æ¯Á¤ ±¸°£¿¡¼­ °ø°İ ÆÇÁ¤
-        if (!attackPerformed && timer >= damageStartTime && timer <= damageEndTime)
+        if (!damageDealtThisAttack && timer >= damageWindowStartTime && timer <= damageWindowEndTime) 
         {
-            // ½ÇÁ¦ µ¥¹ÌÁö ÆÇÁ¤ ·ÎÁ÷ (BossController¿¡ À§ÀÓ °¡´É)
-            // Debug.Log("Melee Attack Hit Check Window Active!");
-            // ÀÌ ±¸°£¿¡¼­ ÇÃ·¹ÀÌ¾î°¡ ¹üÀ§ ³»¿¡ ÀÖ°í, ¾ÆÁ÷ ÀÌ °ø°İÀ¸·Î µ¥¹ÌÁö¸¦ ÀÔÁö ¾Ê¾Ò´Ù¸é µ¥¹ÌÁö Ã³¸®
-            // ÇÑ¹ø¸¸ µ¥¹ÌÁö µé¾î°¡µµ·Ï attackPerformed ÇÃ·¡±× »ç¿ë °¡´É
-        }
+            Transform attackPoint = boss.meleeAttackPoint != null ? boss.meleeAttackPoint : boss.transform;
+            Collider2D[] hits = Physics2D.OverlapCircleAll(attackPoint.position, this.meleeAttackRange, LayerMask.GetMask("Player")); // "Player" ë ˆì´ì–´ì˜ ì ì„ íƒìƒ‰
 
-        if (timer > damageEndTime && !attackPerformed) // µ¥¹ÌÁö ±¸°£ÀÌ Áö³µ°í °ø°İ ½ÇÇà ¾ÈÇßÀ¸¸é
-        {
-            // ÀÌ °ø°İÀ¸·Î µ¥¹ÌÁö ¸ø ÁÜ (ÇÏÁö¸¸ ÄğÅ¸ÀÓÀº µ¹¾Æ¾ß ÇÔ)
-            boss.CurrentGeneralAttackCooldown = boss.generalAttackCooldown; // °ø°İ ½Ãµµ´Â ÇßÀ¸¹Ç·Î ÄğÅ¸ÀÓ
-            attackPerformed = true; // ÇÑ ¹øÀÇ °ø°İ »óÅÂ¿¡¼­ ¿©·¯ ¹ø ÄğÅ¸ÀÓ µ¹Áö ¾Êµµ·Ï
-        }
-
-
-        if (timer >= attackAnimDuration)
-        {
-            if (!attackPerformed) // °ø°İ ÆÇÁ¤ÀÌ ÇÑ ¹øµµ ¾È ÀÏ¾î³µÀ¸¸é ÄğÅ¸ÀÓ ¼³Á¤
+            foreach (var hit in hits)
             {
-                boss.CurrentGeneralAttackCooldown = boss.generalAttackCooldown;
+                IDamageable playerDamageable = hit.GetComponent<IDamageable>();
+                if (playerDamageable != null)
+                {
+                    playerDamageable.TakeDamage(boss.Status.ATK); // ë³´ìŠ¤ ê³µê²©ë ¥ìœ¼ë¡œ ë°ë¯¸ì§€
+                    damageDealtThisAttack = true; 
+                    break;
+                }
             }
-            stateMachine.ChangeState(EBossState.Idle); // ¶Ç´Â Chase
+            if (damageDealtThisAttack)
+            {
+                boss.PerformMeleeAttackAction(); // ë„‰ë°± ë° ì¿¨ë‹¤ìš´ ì‹œì‘ (ë°ë¯¸ì§€ ì„±ê³µ ì‹œ)
+            }
+        }
+
+        if (timer >= attackAnimDuration) 
+        {
+            if (!damageDealtThisAttack) // ê³µê²© ëª» ë§ì·„ì–´ë„ ì¿¨íƒ€ì„ ì‹œì‘
+            {
+                boss.CurrentGeneralAttackCooldown = boss.generalAttackCooldown; 
+            }
+            stateMachine.ChangeState(EBossState.Idle); 
         }
     }
-
     public override void Exit() { }
 }
 
+
 public class BossFlameSkillState : BossBaseState
 {
-    private float skillAnimDuration = 2f; // ¿¹½Ã: ±âµÕ ½ºÅ³ ½ÃÀü ¾Ö´Ï¸ŞÀÌ¼Ç ±æÀÌ
-    private float timer;
-    private bool skillPerformed;
+    private float skillAnimDuration = 2f; 
+    private float timer; 
+    private bool skillPerformed; 
 
-    public BossFlameSkillState(BossController boss, BossStateMachine stateMachine) : base(boss, stateMachine) { }
+    public BossFlameSkillState(BossController boss, BossStateMachine stateMachine) : base(boss, stateMachine) { } 
 
     public override void Enter()
     {
-        timer = 0f;
-        skillPerformed = false;
-        boss.Rb.velocity = Vector2.zero;
         boss.Animator.Play("Idle"); 
+        timer = 0f; 
+        skillPerformed = false; 
+        boss.Rb.velocity = Vector2.zero; 
     }
 
     public override void Execute()
     {
-        timer += Time.deltaTime;
-
-        // ¾Ö´Ï¸ŞÀÌ¼Ç Æ¯Á¤ ½ÃÁ¡¿¡ ½ºÅ³ ½ÇÇà
-        if (!skillPerformed && timer >= 1.0f) // ¿¹: 1ÃÊ µÚ ±âµÕ »ı¼º
+        timer += Time.deltaTime; 
+        if (!skillPerformed && timer >= 1.0f) // ì˜ˆ: 1ì´ˆ ë’¤ ìŠ¤í‚¬ ë°œë™
         {
-            boss.PerformFlameSkill(); // ÀÌ ÇÔ¼ö ³»¿¡¼­ ÄğÅ¸ÀÓ ÃÊ±âÈ­µÊ
-            skillPerformed = true;
+            boss.PerformFlameSkillAction(); 
+            skillPerformed = true; 
         }
+        if (timer >= skillAnimDuration) 
+        {
+            stateMachine.ChangeState(EBossState.Idle); 
+        }
+    }
+    public override void Exit() { }
+}
 
-        if (timer >= skillAnimDuration)
+public class BossFlyingSkillState : BossBaseState
+{
+    public BossFlyingSkillState(BossController boss, BossStateMachine stateMachine) : base(boss, stateMachine) { } //
+
+    public override void Enter()
+    {
+        boss.Animator.Play("Fly"); // ë¹„í–‰ ì• ë‹ˆë©”ì´ì…˜
+        boss.StartFlyingSequence(); // ë¹„í–‰ ì‹œí€€ìŠ¤ ì‹œì‘
+    }
+
+    public override void Execute()
+    {
+        // ë¹„í–‰ ë¡œì§ì€ BossControllerì˜ ì½”ë£¨í‹´ì—ì„œ ì£¼ë¡œ ì²˜ë¦¬ë¨
+        // ì—¬ê¸°ì„œ IsFlying() ë“±ì„ í†µí•´ ì½”ë£¨í‹´ì´ ëë‚¬ëŠ”ì§€ í™•ì¸í•˜ê³  Idleë¡œ ì „í™˜í•  ìˆ˜ë„ ìˆì§€ë§Œ,
+        // í˜„ì¬ëŠ” ì½”ë£¨í‹´ ë‚´ë¶€ì—ì„œ ì§ì ‘ ìƒíƒœë¥¼ ì „í™˜í•˜ê³  ìˆìŒ. (BossController.FlyingSkillRoutine)
+        if (!boss.IsFlying() && boss.StateMachine.CurrentState == this) // ì½”ë£¨í‹´ì´ ëë‚¬ëŠ”ë° ì•„ì§ ì´ ìƒíƒœë¼ë©´ Idleë¡œ
         {
             stateMachine.ChangeState(EBossState.Idle);
         }
     }
-
-    public override void Exit() { }
+    public override void Exit()
+    {
+        // ë§Œì•½ ë¹„í–‰ ì¤‘ì— ê°•ì œë¡œ ë‹¤ë¥¸ ìƒíƒœë¡œ ì „í™˜ëœë‹¤ë©´, ë¹„í–‰ ì¤‘ë‹¨ ì²˜ë¦¬
+        if (boss.IsFlying())
+        {
+            boss.StopFlyingSequenceAndLand(); // ê°•ì œ ì°©ì§€
+        }
+    }
 }
-public class BossFlyingSkillState : BossBaseState
+public class BossHitState : BossBaseState
 {
-    // ºñÇà ¹× °ø°İ ·ÎÁ÷Àº BossControllerÀÇ ÄÚ·çÆ¾¿¡¼­ ´ëºÎºĞ Ã³¸®µÊ
-    // ÀÌ »óÅÂ´Â ÇØ´ç ÄÚ·çÆ¾À» ½ÃÀÛ/Á¾·áÇÏ°í, ´Ù¸¥ »óÅÂ·ÎÀÇ ÀüÈ¯À» °ü¸®
+    private float hitAnimationDuration;
+    private float stateTimer;
 
-    public BossFlyingSkillState(BossController boss, BossStateMachine stateMachine) : base(boss, stateMachine) { }
+    public BossHitState(BossController boss, BossStateMachine stateMachine) : base(boss, stateMachine) { }
 
     public override void Enter()
     {
-        boss.StartFlyingSequence(); // BossControllerÀÇ ÄÚ·çÆ¾ ½ÃÀÛ
+        boss.Animator.Play("Hit");
+        boss.Rb.velocity = Vector2.zero; // í”¼ê²© ì‹œ ì ì‹œ ë©ˆì¶¤
+        stateTimer = 0f;
+
+        // "Hit" ì• ë‹ˆë©”ì´ì…˜ í´ë¦½ì˜ ê¸¸ì´ ê°€ì ¸ì˜¤ê¸°
+        AnimationClip hitClip = boss.Animator.runtimeAnimatorController.animationClips
+                                .FirstOrDefault(clip => clip.name == "Hit");
+        if (hitClip != null)
+        {
+            hitAnimationDuration = hitClip.length;
+        }
+        else
+        {
+            hitAnimationDuration = 0.5f; // ê¸°ë³¸ ì§€ì† ì‹œê°„ (ì• ë‹ˆë©”ì´ì…˜ í´ë¦½ ëª» ì°¾ì„ ì‹œ)
+        }
     }
 
     public override void Execute()
     {
-        // BossControllerÀÇ FlyingSkillRoutine ÄÚ·çÆ¾ÀÌ ´ëºÎºĞÀÇ ·ÎÁ÷À» Ã³¸®.
-        // ÄÚ·çÆ¾ÀÌ ¿Ï·áµÇ¸é (¶Ç´Â Æ¯Á¤ Á¶°Ç¿¡ ÀÇÇØ Áß´ÜµÇ¸é) BossController ³»ºÎ¿¡¼­
-        // Idle »óÅÂ µîÀ¸·Î ÀüÈ¯ÇÏµµ·Ï ¼³°èÇÒ ¼öµµ ÀÖ°í,
-        // ¿©±â¼­ BossControllerÀÇ Æ¯Á¤ ÇÃ·¡±×¸¦ È®ÀÎÇÏ¿© ÀüÈ¯ÇÒ ¼öµµ ÀÖÀ½.
-        // ÇöÀç BossController.FlyingSkillRoutine ¸¶Áö¸·¿¡ Idle·Î ÀüÈ¯ÇÏµµ·Ï µÇ¾î ÀÖÀ½.
-        // µû¶ó¼­ ÀÌ Execute´Â ºñ¾îÀÖ°Å³ª, ºñÇà Áß Ãë¼Ò Á¶°Ç µîÀ» Ã¼Å©ÇÒ ¼ö ÀÖÀ½.
+        stateTimer += Time.deltaTime;
+        if (stateTimer >= hitAnimationDuration)
+        {
+            if (boss.GetPlayerDistance() <= boss.playerDetectionRange)
+            {
+                stateMachine.ChangeState(EBossState.Chase);
+            }
+            else
+            {
+                stateMachine.ChangeState(EBossState.Idle);
+            }
+        }
+    }
 
-        // ¿¹½Ã: ¸¸¾à ºñÇà Áß Æ¯Á¤ Á¶°ÇÀ¸·Î Ãë¼ÒÇØ¾ß ÇÑ´Ù¸é
-        // if (some_cancel_condition)
-        // {
-        //     boss.StopFlyingSequence(); // ÄÚ·çÆ¾ Áß´Ü ¹× ÈÄÃ³¸®
-        //     stateMachine.ChangeState(EBossState.Idle);
-        // }
+    public override void Exit() { }
+}
+public class BossDieState : BossBaseState
+{
+    public BossDieState(BossController boss, BossStateMachine stateMachine) : base(boss, stateMachine) { }
+
+    public override void Enter()
+    {
+        boss.Animator.Play("Die"); // "Die" ì• ë‹ˆë©”ì´ì…˜ ì¬ìƒ
+
+        // ë³´ìŠ¤ì˜ ëª¨ë“  í–‰ë™ ì¤‘ì§€
+        if (boss.Rb != null)
+        {
+            boss.Rb.velocity = Vector2.zero;
+            boss.Rb.isKinematic = true; // ë¬¼ë¦¬ì  ì›€ì§ì„ ì™„ì „íˆ ì¤‘ë‹¨
+        }
+        Collider2D bossCollider = boss.GetComponent<Collider2D>();
+        if (bossCollider != null)
+        {
+            bossCollider.enabled = false; // ë” ì´ìƒ ì¶©ëŒí•˜ì§€ ì•Šë„ë¡
+        }
+        boss.HandleDeathEffectsAndCleanup(); 
+    }
+
+    public override void Execute()
+    {
     }
 
     public override void Exit()
     {
-        // ¸¸¾à Enter¿¡¼­ ½ÃÀÛÇÑ ÄÚ·çÆ¾ÀÌ Exit ½ÃÁ¡±îÁö ³¡³ªÁö ¾Ê¾Ò´Âµ¥ °­Á¦·Î »óÅÂ°¡ ¹Ù²ï´Ù¸é
-        // ¿©±â¼­ boss.StopFlyingSequence()¸¦ È£ÃâÇÏ¿© Á¤¸®ÇÒ ¼ö ÀÖÀ½.
-        // ÇÏÁö¸¸ ÀÏ¹İÀûÀ¸·Î´Â ÄÚ·çÆ¾ÀÌ ½º½º·Î ¿Ï·áµÇ°í »óÅÂ¸¦ ÀüÈ¯ÇÏ°Å³ª,
-        // ÄÚ·çÆ¾ ³»¿¡¼­ ´ÙÀ½ »óÅÂ¸¦ °áÁ¤ÇÏ´Â °ÍÀÌ ´õ °ü¸®ÇÏ±â ÆíÇÔ.
-        // ÇöÀç´Â ÄÚ·çÆ¾ÀÌ ³¡³ª¸é BossController¿¡¼­ Idle·Î °¨.
+
     }
 }

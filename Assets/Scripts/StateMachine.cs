@@ -5,7 +5,7 @@ using UnityEngine;
 
 public class StateMachine
 {
-    public BaseState currentState;
+    public BaseState CurrentState { get; private set; }
     private Dictionary<EPlayerState, BaseState> states = new Dictionary<EPlayerState, BaseState>();
 
     public void AddState(EPlayerState stateType, BaseState state)
@@ -13,17 +13,20 @@ public class StateMachine
         states[stateType] = state;
     }
 
-    public void ChangeState(EPlayerState newState)
+    public void ChangeState(EPlayerState newStateKey)
     {
-        if (currentState != null)
-            currentState.Exit();
+        if (!states.ContainsKey(newStateKey))
+        {
+            return;
+        }
 
-        currentState = states[newState];
-        currentState.Enter();
+        CurrentState?.Exit();
+        CurrentState = states[newStateKey];
+        CurrentState.Enter();
     }
 
     public void Update()
     {
-        currentState?.Execute();
+        CurrentState?.Execute();
     }
 }

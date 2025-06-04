@@ -10,5 +10,8 @@ public enum EBossState
     RangedAttack,
     MeleeAttack,
     FlameAttack,
-    FlyingAttack
+    FlyingAttack,
+    Hit,
+    Die
+
 }

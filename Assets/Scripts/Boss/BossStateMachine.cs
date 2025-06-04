@@ -6,10 +6,11 @@ public class BossStateMachine
 {
     public BossBaseState CurrentState { get; private set; }
     private Dictionary<EBossState, BossBaseState> states = new Dictionary<EBossState, BossBaseState>();
+    private BossController ownerBoss; // BossController ì°¸ì¡°
 
-    public BossStateMachine(BossController bossController) // BossController¸¦ ¹Ş¾Æ °¢ »óÅÂ¿¡ ³Ñ°ÜÁÙ ¼ö ÀÖµµ·Ï
+    public BossStateMachine(BossController boss) // ìƒì„±ìì—ì„œ BossController ë°›ê¸°
     {
-        // »óÅÂµéÀ» ¿©±â¼­ Á÷Á¢ »ı¼ºÇÏ°Å³ª, BossController¿¡¼­ AddState¸¦ È£ÃâÇÏ¿© Ãß°¡
+        this.ownerBoss = boss;
     }
 
     public void AddState(EBossState stateType, BossBaseState state)
@@ -21,14 +22,13 @@ public class BossStateMachine
     {
         if (!states.ContainsKey(newStateKey))
         {
+            Debug.LogError($"BossStateMachine: State {newStateKey} not found!");
             return;
         }
-
         CurrentState?.Exit();
         CurrentState = states[newStateKey];
         CurrentState.Enter();
     }
-
     public void Update()
     {
         CurrentState?.Execute();
