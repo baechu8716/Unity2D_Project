@@ -222,6 +222,7 @@ public class AttackState : BaseState
             if (Input.GetMouseButtonDown(0)) // 좌클릭으로 발사
             {
                 player.FireArrow(); // 화살 발사
+                SFXManager.Instance.PlayPlayerAttackSound();
                 player.Animator.speed = 1f; // 애니메이션 다시 재생
                 arrowFired = true; // 발사됨 표시
                 waitingForFire = false; // 대기 상태 해제

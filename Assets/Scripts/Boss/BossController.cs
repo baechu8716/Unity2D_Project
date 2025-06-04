@@ -442,6 +442,11 @@ public class BossController : MonoBehaviour, IDamageable
 
         Debug.Log("보스 사망");
         StateMachine.ChangeState(EBossState.Die); // FSM을 통해 Die 상태로 전환
+
+        if (GameManager.Instance != null)
+        {
+            GameManager.Instance.ShowGameClearUI();
+        }
     }
 
     public void HandleDeathEffectsAndCleanup()

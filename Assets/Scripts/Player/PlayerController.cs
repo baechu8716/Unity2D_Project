@@ -288,8 +288,13 @@ public class PlayerController : MonoBehaviour, IDamageable
         if (stateMachine.CurrentState is PlayerDieState) return; 
 
         Debug.Log("플레이어 사망"); 
-        ChangeState(EPlayerState.Die); 
-        
+        ChangeState(EPlayerState.Die);
+
+        if (GameManager.Instance != null)
+        {
+            GameManager.Instance.ShowGameOverUI();
+        }
+
         BossController boss = FindObjectOfType<BossController>(); 
         if (boss != null)
         {

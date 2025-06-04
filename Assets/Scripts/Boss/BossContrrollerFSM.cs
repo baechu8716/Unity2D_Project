@@ -136,7 +136,8 @@ public class BossRangedAttackState : BossBaseState
 
     public override void Enter()
     {
-        boss.Animator.Play("RangeAttack"); 
+        boss.Animator.Play("RangeAttack");
+        SFXManager.Instance.PlayBossAttackSound();
         timer = 0f; 
         attackActionTriggered = false; 
         boss.Rb.velocity = Vector2.zero; 
