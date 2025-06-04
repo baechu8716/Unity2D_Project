@@ -22,7 +22,6 @@ public class BossController : MonoBehaviour, IDamageable
     [Header("Detection & Movement")]
     public float playerDetectionRange = 15f;
     public float maintainDistanceRange = 3f;
-    private bool isPlayerDead;
 
     [Header("General Attack (Ranged/Melee)")]
     public float generalAttackCooldown = 3f;
@@ -190,7 +189,6 @@ public class BossController : MonoBehaviour, IDamageable
 
     public void NotifyPlayerDeath()
     {
-        isPlayerDead = true; // isPlayerDead 플래그가 있다면 계속 사용
         Debug.Log("보스: 플레이어 사망 알림 받음. Idle 상태로 전환 준비.");
         if (StateMachine.CurrentState is not BossIdleState && StateMachine.CurrentState is not BossDieState)
         {

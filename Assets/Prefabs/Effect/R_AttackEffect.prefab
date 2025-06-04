@@ -148,7 +148,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 24054766022345f4eb35f8f6498cbc66, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  damageMultiplier: 1
+  damageMultiplier: 100
   lifetime: 3
   targetTag: Player
   dealDamageOncePerTarget: 1
