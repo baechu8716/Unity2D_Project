@@ -177,7 +177,7 @@ public class PlayerController : MonoBehaviour, IDamageable
             {
                 float finalArrowDamage = Status.ATK.Value * arrowDamageMultiplier; // 플레이어 기본 공격력 * 배율
                 arrowScript.Initialize(direction, finalArrowDamage, gameObject); // Projectile 초기화 (데미지, 발사자 정보 전달)
-                Debug.Log($"플레이어 화살 발사! 방향: {direction}, 기본 데미지: {Status.ATK.Value}, 배율: {arrowDamageMultiplier}, 최종 데미지: {finalArrowDamage}");
+                Debug.Log($"플레이어 화살 발사 방향: {direction}, 기본 데미지: {Status.ATK.Value}, 배율: {arrowDamageMultiplier}, 최종 데미지: {finalArrowDamage}");
             }
         }
     }

@@ -149,10 +149,10 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   damageMultiplier: 1
-  lifetime: 3
+  lifetime: 3.5
   targetTag: Player
-  dealDamageOncePerTarget: 1
-  continuousDamageInterval: 0.5
+  dealDamageOncePerTarget: 0
+  continuousDamageInterval: 0.3
 --- !u!61 &-754471877298356906
 BoxCollider2D:
   m_ObjectHideFlags: 0

@@ -44,6 +44,7 @@ GameObject:
   - component: {fileID: 6466864589933157539}
   - component: {fileID: 8705869248413726236}
   - component: {fileID: 178682550596287421}
+  - component: {fileID: 8851477852047080480}
   m_Layer: 7
   m_Name: Player
   m_TagString: Player
@@ -176,7 +177,8 @@ MonoBehaviour:
   meleeAttackCooldown: 1
   arrowPrefab: {fileID: 8538999360232104674, guid: 1407078cb571caa4ca2f257abc8d04b3, type: 3}
   firePoint: {fileID: 7727429284843591831}
-  maxFireAngle: 45
+  maxFireAngle: 30
+  arrowDamageMultiplier: 1
   rollCooldown: 2
   aimUIPrefab: {fileID: 6951408062881659131, guid: b8abc85e942e5c14eb30fe87b23480e1, type: 3}
   virtualCamera: {fileID: 0}
@@ -187,6 +189,20 @@ MonoBehaviour:
   validAngleColor: {r: 0, g: 1, b: 0, a: 1}
   invalidAngleColor: {r: 1, g: 0, b: 0, a: 1}
   movementDisabled: 0
+--- !u!114 &8851477852047080480
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1360563328749936982}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ccbe2e3043842aa42b73f9772ae3094f, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  hpSlider: {fileID: 0}
+  targetCharacterController: {fileID: 178682550596287421}
 --- !u!1 &3669437530450464918
 GameObject:
   m_ObjectHideFlags: 0
